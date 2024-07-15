@@ -1,0 +1,74 @@
+;8255接口初始化，由cs连接的ioy端口决定。
+a8255_con equ 0606h
+a8255_a equ 0600h
+a8255_b equ 0602h
+a8255_c equ 0604h
+;数码管的数据表，分别表示0-9
+data segment
+table1:
+    db 3fh
+    db 06h
+    db 5bh
+    db 4fh
+    db 66h
+    db 6dh
+    db 7dh
+    db 07h
+    db 7fh
+    db 6fh
+data ends
+code segment
+    assume cs:code,ds:data
+start:
+    mov ax,data
+    mov ds,ax
+    lea si,table1;获取数据地址
+    mov dx,a8255_con
+    mov al,81h
+    out dx,al
+    
+    mov dx,a8255_b
+    mov al,3fh
+    out dx,al
+    
+    mov dx,a8255_a
+    mov al,00h
+    out dx,al;清屏
+    
+    mov cx,0ah
+    mov bx,0000h
+x1: 
+    push cx
+    mov cx,06h
+    mov al,11011111b;11011111
+x2:
+    mov dx,a8255_a
+    out dx,al
+    ror al,1;ror循环右移,rol循环左移
+    push ax
+    mov al,[bx+si]
+    mov dx,a8255_b
+    out dx,al
+    pop ax
+    call delay
+    loop x2;一个数字显示6次
+    
+    pop cx
+    inc bx
+    loop x1;两层循环嵌套，第一层控制一个数字在数码管上循环显示6次，第二层控制显示的数字
+    jmp start
+    
+    
+    
+delay:
+    push cx
+    mov cx,0ffffh
+x4:
+    loop x4
+    mov cx,0ffffh
+x5:
+    loop x5
+    pop cx
+    ret
+code ends
+     end start

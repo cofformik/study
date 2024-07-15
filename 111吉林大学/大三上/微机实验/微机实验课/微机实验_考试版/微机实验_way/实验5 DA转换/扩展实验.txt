@@ -1,0 +1,135 @@
+p8255a equ 0640h				;IOY1
+p8255b equ 0642h
+p8255c equ 0644h
+p8255mode equ 0646h
+data 	segment
+value	db	00h					;标志
+data 	ends 
+code   	segment
+	   	assume cs:code,ds:data
+ 
+start: 	
+		push ds
+		mov ax, 0000h
+		mov ds, ax		
+		mov ax, offset mir6		;取MIR6中断入口地址
+		mov si, 0038h			;中断向量地址
+		mov [si], ax				;在中断向量表中填MIR6的偏移地址
+		mov ax, cs				;MIR6的段地址就是CS
+		mov si, 003ah			;在中断向量表中填IRQ6的段地址
+		mov [si], ax
+		cli					;初始化前关中断
+		pop ds
+		;初始化主片8259
+		mov al, 11h				;级联，边沿触发，要icw4
+		out 20h, al				;icw1
+		mov al, 08h				;中断类型号从8开始
+		out 21h, al				;icw2
+		mov al, 04h				; 
+		out 21h, al				;icw3
+		mov al, 01h				;非缓冲方式，8086/8088配置0000 0001
+		out 21h, al				;icw4	
+		mov al, 2fh       		     	;0010 1111
+		out 21h, al				;主8259 ocw1	允许 ir4 ir6 ir7
+		sti
+ 			
+aa24:	cmp value,03h			;阶梯波
+		jz	aa6
+aa23:	cmp value,02h			;三角波
+		jz  aa5
+aa22:	cmp value,01h			;矩形波
+		jz	aa4
+aa21:	cmp value,00h			;锯齿波
+		jz	aa3
+		jmp aa24	
+		
+aa3:	     	;锯齿波
+		mov dx, 0600h     		;dac0832接ioy0,0600h为控制端口地址
+		mov al, 00h       		;al为数字量
+jc1: 
+		out dx, al        		;转换为模拟量输出到屏幕
+		call delay1       		;延时，此为短延时
+		cmp al ,0ffh
+		je jc2
+		inc al            		;al步加1，直到等于0ffh
+		jmp jc1
+jc2:
+		jmp	aa21
+    	
+aa4:		;矩形波
+		mov dx, 0600h
+		mov al, 00h       		;先输出00h的波形
+		out dx, al
+		call delay2       		;长延时
+		mov al, 0ffh      		;再输出0ffh的波形
+		out dx, al
+		call delay2       		;长延时  
+		jmp	aa22
+   
+aa5:		;三角波
+		mov al,00h
+sj1:
+		mov dx, 0600h		;上升段
+		out dx, al
+		call delay1       		;短延时
+		cmp al, 0ffh			
+		je sj2           
+		inc al            		;将al从00h步加0ffh
+		jmp sj1
+sj2:		dec al				;消除平顶
+		mov dx, 0600h   		;下降段
+		out dx, al
+		call delay1       		;短延时
+		cmp al, 00h
+		je sj3
+		dec al            		;将al从0ffh步减至00h
+		jmp sj2
+sj3:
+		jmp	aa23
+
+aa6:		;阶梯波
+		mov ax, 0ffh       		
+		mov bl,05h         		;阶梯数5
+		div bl             		;用最大振幅除以阶梯数，得到每个台阶的高度
+		mov bl, al         		;将上述除法的商保存在bl中
+		mov bh, 00h        		;bh置0
+
+		mov ax,0000h       		;ax初始化0000h
+jt1:
+		cmp ax, 00ffh      		;判断ax是否达到幅度上限
+		ja  jt2            		;达到上限，表示一次阶梯波完整生成，开始新一次生成		
+		mov dx, 0600h
+		out dx, al
+		call delay2       	 	;长延时
+		add ax, bx         		;用当前阶梯高度加上每个阶梯的高度得到下一阶梯的高度
+		jmp jt1
+jt2:
+		jmp aa24
+
+
+mir6:	
+		add value,01h
+           	cmp value,04h
+           	jz xx1
+		mov value,00h	
+		iret
+
+		
+delay1:                			;短延时
+		push cx
+		mov cx, 00ffh
+d1: 
+		loop d1
+		pop cx
+		ret
+ 
+delay2:               			;长延时
+		push cx
+		mov cx, 0ffffh
+d2: 
+		loop d2
+		pop cx
+		ret
+		
+code	ends
+		end  start

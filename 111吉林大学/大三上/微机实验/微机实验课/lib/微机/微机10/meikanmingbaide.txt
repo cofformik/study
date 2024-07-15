@@ -1,0 +1,214 @@
+begin:
+		call dis					;调用显示子程序
+		call clear					;清屏
+		call ccscan					;扫描按键
+		jnz ink1					;有键按下
+		cmp stt,01h
+		jne begincon				;stt=00h 暂停状态
+		sti							;stt=01h 继续状态 开中断
+begincon:    
+		cmp stt,00h			
+		jne begin					;stt=01h 仍处于继续状态 跳到begin
+		cli							;stt=00h 进入暂停状态 关中断
+		jmp begin 					
+ 
+
+
+kcode: 
+		add al,cl					;将第1列的值加上当前列数，确定按键值
+		call putbuf					;保存按键值
+		push ax
+kon: 
+		call dis					;显示刷新
+		call clear					;清屏
+		call ccscan					;扫描按键，判断按键是否弹起
+		jnz kon						;未弹起则继续循环等待弹起
+		pop ax
+next:  
+		inc cl						;当前检测的列数递增
+		mov al,ch
+		test al,08h					;检测是否扫描到第4列
+		jz kerr						;是则跳回到开始处
+		rol al,1					;没检测到第4列则准备检测下一列
+		mov ch,al
+		jmp colum
+kerr:
+		jmp begin
+
+ 
+putbuf:
+sttt:
+		cmp stt,01h
+		jne cc						;stt=00h 暂停状态 跳到cc
+		cmp al,0ah					;继续状态下 
+		jb goback					;按键值比a小 即按下的是0-9
+cc:
+		cmp al,0ch
+		jne bb						;按下的不是c键 跳到bb
+		mov ah,4ch					;按下的是c键 程序退出
+		int 21h
+bb:
+		cmp al,0bh					
+		jne aa						;按下的不是b键 跳到aa
+		cmp stt,00h					;按下的是b键
+		jne set0					;stt=01h 继续状态 将继续状态转换为暂停状态
+		mov stt,01h					;stt=00h 暂停状态 将暂停状态转化为继续状态
+		jmp goback
+set0:
+		mov stt,00h 				;设置为暂停状态   
+		jmp goback 
+aa:
+		cmp al,0ah					
+		jne putbufcon				;按下的不是a键 存入键值
+testt:								;按下的是a键
+		cmp stt,00h						
+		je testtcon					;stt=00h 暂停状态 跳到testtcon
+		call finish					;stt=01h 继续状态 继续状态下按下a键 调用finish子程序
+		jmp goback
+testtcon:   						;暂停状态下按下a键 
+		mov stt,01h   				;设置为继续状态 
+		push si
+		push ax
+		mov si,3000h
+		mov al,[si+1]
+		rol al,4
+		mov ah,[si]
+		add al,ah
+		mov min,al					;存入分 计数初值显示在数码管3和4上 范围为1~99分钟
+		mov al,00h
+		mov sec,al					;存入秒
+		pop ax
+		pop si
+		jmp goback 
+putbufcon:    
+		mov si,di                   ;存键盘值到相应位的缓冲中
+		mov [si],al
+		dec di
+		cmp di,2fffh
+		jnz goback
+		mov di,3001h				;回到初始位置
+goback: 
+		ret
+ 
+ 
+mir7:
+		sti 
+		push ax
+		push si
+		mov ax,msec 
+		inc ax 
+		mov msec,ax
+		cmp ax,1000
+		jb mret						;msec<1000 
+ 
+		mov ax,0
+		mov msec,ax					;中断计数复原
+ 
+		mov al,sec
+		cmp al,00h					;判断秒是否为00
+		jz ddd						;秒为00跳到ddd
+    
+		sub al,1
+		das							;压缩bcd码减法调整指令
+		mov sec,al
+
+		jmp mtodis					;秒减1前不是00 跳到mtodis
+ 
+ 
+
+ddd:	mov al,min
+		cmp al,00					;判断分是否为00
+		jne continue
+		call finish					;分和秒均为00 调用finish子程序
+		jmp mret 
+continue:
+		sub al,1
+		das							;压缩bcd码减法调整指令
+		mov min,al
+
+		mov al,00h
+		mov sec,al
+		mov al,00h
+		mov sec,al
+		add al,59h
+		daa							;压缩bcd码加法调整指令
+		mov sec,al
+mtodis: 							;向显示缓冲区中写入新值
+		mov al,sec
+		mov ah,al
+		mov si,3000h
+		and al,0fh
+		mov [si],al
+		ror ah,1
+		ror ah,1
+		ror ah,1
+		ror ah,1
+		and ah,0fh
+		mov [si+1],ah
+		mov al,min
+		mov ah,al
+		and al,0fh
+		mov [si+2],al
+		ror ah,1
+		ror ah,1
+		ror ah,1
+		ror ah,1
+		and ah,0fh
+		mov [si+3],ah
+mret:
+		mov al, 20h
+		out 20h, al                	;中断结束命令
+		pop si
+		pop ax
+		iret
+ 
+
+ 
+dis:								;显示键值子程序
+		push ax 					;以缓冲区存放的键值为键值表偏移找到键值并显示
+		mov si,3000h
+		mov dl,0f7h					;f7h=11110111b
+		mov al,dl
+again: 
+		push dx 
+		mov dx,my8255_a
+		out dx,al					;设置x1~x6，选通一个数码管
+		
+		mov al,[si]					;取出缓冲区中存放键值
+		mov bx,offset dtable
+		and ax,00ffh 
+		add bx,ax
+		mov al,[bx]					;将键值作为偏移和键值基地址相加得到相应的共阴极数码管编码
+		mov dx,my8255_b 
+		out dx,al 					;写入数码管a~dp
+		
+		call dally
+		inc si						;取下一个键值
+		pop dx
+		mov al,dl
+		test al,01h					;判断是否显示完
+		jz out1						;显示完，返回
+		ror al,1 
+		mov dl,al
+		jmp again					;未显示完，跳回继续
+out1: 
+		pop ax
+		ret
+ 
+
+ 
+
+ 
+finish:								;计时结束子程序
+		mov al,0ah
+		push si
+		mov si,3000h
+		mov [si],al					;清显示缓冲
+		mov [si+1],al 
+		mov [si+2],al
+		mov [si+3],al
+		pop si 
+  		call clear
+		call delay
+		call dis
+

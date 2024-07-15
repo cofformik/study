@@ -1,0 +1,166 @@
+my8255_a equ 0600h
+my8255_b equ 0602h
+my8255_c equ 0604h
+my8255_con  equ 0606h
+sstack  segment stack
+    dw 16 dup(?)
+sstack  ends
+ 
+data segment
+    dtable  db 3fh,06h,5bh,4fh,66h,6dh,7dh,07h, 7fh,6fh,77h,7ch,39h,5eh,79h,71h
+data ends
+code segment
+    assume cs:code,ds:data
+start:  
+    mov ax,data
+    mov ds,ax
+    mov si,3000h
+    mov al,00h
+    mov [si],al             ;清显示缓冲
+    mov [si+1],al
+    mov [si+2],al
+    mov [si+3],al
+    mov [si+4],al
+    mov [si+5],al
+    mov di,3005h
+    mov dx,my8255_con       ;写 8255 控制字
+    mov al,81h
+    out dx,al
+begin:  
+    call dis                ;调用显示子程序
+    call clear              ;清屏
+    call ccscan             ;扫描
+    jnz ink1;有按键按下
+    jmp begin
+ 
+ink1:  
+    call dis;消除抖动
+    call delay
+    call delay
+    call clear
+    call ccscan
+    jnz ink2                ;有键按下，转到 ink2
+    jmp begin
+    ;确定按下键的位臵
+ink2:  
+    mov ch,0feh
+    mov cl,00h
+ 
+colum:  
+    mov al,ch;选取一列
+    mov dx,my8255_a
+    out dx,al
+    mov dx,my8255_c
+    in al,dx;判断哪一行被按下
+l1: 
+    test al,01h             ;is l1?
+    jnz l2
+    mov al,00h              ;l1
+    jmp kcode
+l2: 
+    test al,02h             ;is l2?
+    jnz l3
+    mov al,04h              ;l2
+    jmp kcode
+l3: 
+    test al,04h             ;is l3?
+    jnz l4
+    mov al,08h              ;l3
+    jmp kcode
+l4: 
+    test al,08h             ;is l4?
+    jnz next
+    mov al,0ch              ;l4
+kcode:  
+    add al,cl;确定按键值
+    call putbuf;保存按键值
+    push ax
+kon: 
+    call dis
+    call clear
+    call ccscan;扫描按键，判断按键是否弹起
+    jnz kon;未弹起则继续循环等待弹起
+    pop ax
+next:  
+    inc cl;列计数加一
+    mov al,ch
+    test al,08h;检测是否扫描到第4列
+    jz kerr;是则跳转
+    rol al,1
+    mov ch,al
+    jmp colum
+kerr:  
+    jmp begin
+ccscan: 
+    mov al,00h              ;键盘扫描子程序
+    mov dx,my8255_a
+    out dx,al
+    mov dx,my8255_c
+    in al,dx;读y1~y4
+    not al;0011 1100 1100 1111 0000 0000
+    and al,0fh;因为上面不会改变标志位，所以此处再进行一次与操作，改变标志位
+    ret
+    
+    
+clear:  
+    mov dx,my8255_b         ;清屏子程序
+    mov al,00h   ;段位置0即可清除数码管显示
+    out dx,al
+    ret
+    
+    
+dis: 
+    push ax                 ;显示子程序
+    mov si,3000h
+    ;mov dl,0dfh             ;dfh=11011111b
+    mov dl,11111110b
+    mov al,dl
+again:  
+    push dx
+    mov dx,my8255_a
+    out dx,al
+    mov al,[si]
+    mov bx,offset dtable
+    and ax,00ffh
+    add bx,ax;将键值作为偏移和键值基地址相加得到相应的共阴极数码管编码
+    mov al,[bx]
+    mov dx,my8255_b
+    out dx,al
+    call delay
+    inc si
+    pop dx
+    mov al,dl
+    ;test al,01h;判断是否显示完，test进行逻辑与操作，不会改变内容，只改变标志位
+    test al,80h
+    jz out1;显示完
+    ;ror al,1;右移
+    rol al,1
+    mov dl,al
+    jmp again
+out1:  
+    pop ax
+    ret
+    
+    
+delay:  
+    push cx                  ;延时子程序
+    mov cx,0006h
+    t1: mov ax,009fh
+    t2: dec ax
+    jnz t2
+    loop t1
+    pop cx
+    ret
+    
+    
+putbuf: 
+    mov si,di                ;存键盘值到相应位的缓冲中
+    mov [si],al
+    dec di
+    cmp di,2fffh
+    jnz goback
+    mov di,3005h
+goback: 
+    ret
+code ends
+    end start

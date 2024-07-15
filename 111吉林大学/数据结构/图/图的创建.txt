@@ -1,0 +1,68 @@
+#include<iostream>
+#include<vector>
+#include<algorithm>
+using namespace std;
+struct Edge {
+	int verpre;
+	int veradj;
+	int cost;
+	Edge* link;
+	Edge(int p, int v, int s) :verpre(p), veradj(v), cost(s), link(nullptr) {}
+};
+
+struct Vertex {
+	int vername;
+	Edge* adjacent;
+	Vertex(int v = 0) :vername(v), adjacent(nullptr) {}
+};
+void buildGraph(vector<Vertex*>& vt) {
+	int u, v, s;
+	cin >> u >> v >> s;
+	Edge* t = new Edge(u, v, s);
+	if (vt[u]->adjacent == nullptr) {
+		vt[u]->adjacent = t;
+	}
+	else {
+		Edge* p = vt[u]->adjacent;
+		if (p->veradj > v) {
+			Edge* q = p;
+			vt[u]->adjacent = t;
+			t->link = q;
+			return;
+		}
+		while (p->link != nullptr && p->link->veradj < v)
+			p = p->link;
+		if (p->link == nullptr) {
+			p->link = t;
+
+		}
+		else {
+			Edge* q = p->link;
+			p->link = t;
+			t->link = q;
+		}
+
+	}
+}
+
+int main() {
+	int n, m;
+	cin >> n >> m;
+	vector<Vertex*> vt(n);
+	for (int i = 0; i < n; ++i) {
+		vt[i] = new Vertex(i);
+	}
+	while (m--) {
+		buildGraph(vt);
+	}
+	for (int i = 0; i < n; ++i) {
+		Edge* p = vt[i]->adjacent;
+		if (p != nullptr) cout << i << ":";
+		while (p != nullptr) {
+			cout << "(" << p->verpre << "," << p->veradj << "," << p->cost << ")";
+			p = p->link;
+		}
+		if (vt[i]->adjacent != nullptr) cout << endl;
+	}
+	return 0;
+}

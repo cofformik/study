@@ -1,0 +1,134 @@
+;8255接口初始化，由cs连接的ioy端口决定。
+a8255_con equ 0606h
+a8255_a equ 0600h
+a8255_b equ 0602h
+a8255_c equ 0604h
+;数码管的数据表，分别表示0-9
+
+code segment
+    assume cs:code
+start:
+
+    mov dx,a8255_con
+    mov al,89h
+    out dx,al
+    
+
+    
+    mov dx,a8255_a
+    mov al,3fh
+    out dx,al
+    mov dx,a8255_b
+    mov al,00h
+    out dx,al
+    
+
+x1: 
+    call clea
+    mov dx,a8255_c
+    in al,dx
+    mov bl,al
+    
+    mov al,01h;1
+    and al,bl
+    jz aa1
+    mov al,11111110b
+    mov dx,a8255_a
+    out dx,al
+    mov al,6dh;5
+    mov dx,a8255_b
+    out dx,al
+    call delay
+
+    ;call clea
+    
+aa1:mov al,02h;2
+    and al,bl
+    jz aa2
+    mov al,11111101b
+    mov dx,a8255_a
+    out dx,al
+    mov al,3fh;0
+    mov dx,a8255_b
+    out dx,al
+    call delay
+
+    ;call clea
+    
+ aa2: mov al,04h;3
+    and al,bl
+    jz aa3
+    mov al,11111011b
+    mov dx,a8255_a
+    out dx,al
+    mov al,6fh;9
+    mov dx,a8255_b
+    out dx,al
+    call delay
+
+    ;call clea
+        
+aa3:mov al,08h;4
+    and al,bl
+    jz aa4
+    mov al,11110111b
+    mov dx,a8255_a
+    out dx,al
+    mov al,3fh;0
+    mov dx,a8255_b
+    out dx,al
+    call delay
+
+    ;call clea
+            
+ aa4:mov al,010h;5
+    and al,bl
+    jz aa5
+    mov al,11101111b
+    mov dx,a8255_a
+    out dx,al
+    mov al,6fh;9
+    mov dx,a8255_b
+    out dx,al
+    call delay
+
+    ;call clea
+    
+aa5:mov al,0100000b;6
+    and al,bl
+    jz x1
+    mov al,11011111b
+    mov dx,a8255_a
+    out dx,al
+    mov al,06h;1
+    mov dx,a8255_b
+    out dx,al
+    call delay
+    ;call clea
+    jmp x1
+     
+    
+delay:
+    push cx
+    mov cx,0ffh
+x4:
+    loop x4
+    mov cx,0ffh
+x5:
+    loop x5
+    pop cx
+    ret
+clea:
+    push dx
+    push ax
+    mov dx,a8255_a
+    mov al,3fh
+    out dx,al
+    mov dx,a8255_b
+    mov al,00h
+    out dx,al
+    pop ax
+    pop dx
+    ret
+code ends
+     end start

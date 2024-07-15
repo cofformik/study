@@ -1,0 +1,32 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+		mov dx, con8254
+		mov al, 36h				;8254计数器0工作在方式3，产生方波，相当于clk
+		out dx, al
+		mov dx, a8254
+		mov al, 0e8h
+		out dx, al
+		mov al, 03h
+		out dx, al
+		;8254计数器0工作在方式3，产生方波，相当于clk
+		mov dx, con8254
+		mov al, 76h             ;8254计数器1工作在方式3，产生方波。 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 00h 
+		out dx, al 
+		mov al, 0ah             ;写入计数初值0a00h
+		out dx, al 
+aa1: 
+		jmp aa1 
+;将gate1置为高电平，运行程序，在示波器中可以看到out1规律输出方波。
+code 	ends 
+		end start

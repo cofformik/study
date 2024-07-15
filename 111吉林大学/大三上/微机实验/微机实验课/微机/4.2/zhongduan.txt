@@ -1,0 +1,85 @@
+p8255a equ 0600h
+p8255b equ 0602h
+p8255c equ 0604h
+p8255mode equ 0606h
+
+code segment 
+     assume cs:code
+start:  mov al,90h
+        mov dx,p8255mode
+        out dx,al;送控制字
+        
+        mov al,0ffh
+        mov dx,p8255b
+        out dx,al
+        
+        
+        mov dx,0642h
+        out dx,al
+        
+        
+       ;写入中断向量 
+       push ds
+       mov ax,0000h
+       mov ds,ax
+       mov ax,offset mir6
+       mov si,0038h
+	   mov [si],ax
+	   mov ax,cs
+	   mov si,003ah
+	   mov [si],ax
+	   cli ;关中断
+	   pop ds
+
+	   ;初始化主片8259
+	   mov al,11h;级联，边沿触发，要icw4
+	   out 20h,al;icw1，端口地址查表可知
+	   mov al,08h;中断类型号从8开始
+	   out 21h,al ;icw2
+	   mov al,04h
+	   out 21h,al;icw3
+	   mov al,07h;非缓冲方式，8086/8088配置；05h，03h
+	   out 21h,al;icw4
+	   mov al,2fh;
+       out 21h,al;ocw1
+       sti
+
+       ;mov dx,p8255b
+       ;mov al,0ffh
+       ;out dx,al
+
+a1:    cli
+
+        mov dx,0642h
+        out dx,al;开启采样
+        
+        call delay
+        sti
+        jmp a1
+        
+delay:  push cx
+        mov cx,0ffffh
+a2:        
+        loop a2
+        pop cx
+        ret
+        
+mir6: push dx
+        push ax
+        mov dx,0642h
+        in al,dx;读取采样结果       
+        mov dx,p8255b
+        out dx,al;送led 
+        mov al,20h
+        out 20h,al
+        pop ax
+        pop dx
+        iret
+
+
+code ends
+end start        
+
+
+
+      

@@ -1,0 +1,89 @@
+实验接线图如图4.16所示，KK1＋连接到主片8259的IR7上，KK2＋连接到从片8259的IR1上，当按一次KK1＋时，显示屏上显示字符“M7”，按一次KK2＋时，显示字符“S1”。编写程序。
+
+
+实验程序清单（INTCAS1.ASM）
+SSTACK	SEGMENT STACK
+		DW 32 DUP(?)
+SSTACK	ENDS
+ 
+CODE   	SEGMENT
+	   	ASSUME CS:CODE
+ 
+START: 	PUSH DS
+		MOV AX, 0000H
+		MOV DS, AX
+		MOV AX, OFFSET MIR7		;取中断入口地址
+		MOV SI, 003CH				;中断矢量地址
+		MOV [SI], AX				;填IRQ7的偏移矢量
+		MOV AX, CS				;段地址
+		MOV SI, 003EH
+		MOV [SI], AX				;填IRQ7的段地址矢量		
+		MOV AX, OFFSET SIR1		；取STR1的偏移地址
+		MOV SI, 00C4H
+		MOV [SI], AX
+		MOV AX, CS
+		MOV SI, 00C6H
+		MOV [SI], AX
+		CLI
+		POP DS
+		;初始化主片8259
+		MOV AL, 11H				；0001 0001 级联，边沿触发，要ICW4
+		OUT 20H, AL				;ICW1
+		MOV AL, 08H				；0000 1000 中断类型号从8开始
+		OUT 21H, AL				;ICW2
+		MOV AL, 04H				；0000 0100 
+		OUT 21H, AL				;ICW3
+		MOV AL, 01H				；0000 0001 非缓冲方式，8086/8088配置
+		OUT 21H, AL				;ICW4
+ 
+		;初始化从片8259
+		MOV AL, 11H				；0001 0001 级联，边沿触发，要ICW4
+		OUT 0A0H, AL				;ICW1
+		MOV AL, 30H				；0011 0000 终端类型号从30H开始
+		OUT 0A1H, AL				;ICW2
+		MOV AL, 02H				；0000 0010 通过IR1引脚连接主片
+		OUT 0A1H, AL				;ICW3
+		MOV AL, 01H				；0000 0001 非缓冲方式，8086/8088配置
+		OUT 0A1H, AL				;ICW4
+		MOV AL, 0FDH
+		OUT 0A1H,AL				;OCW1 = 1111 1101	允许IR1中断请求	
+		MOV AL, 6BH       			；0110 1011
+		OUT 21H, AL				;主8259 OCW1
+		STI
+ 
+AA1:		NOP
+		JMP AA1
+ 
+MIR7:	CALL DELAY
+		MOV AX, 014DH
+		INT 10H					;M
+		MOV AX, 0037H
+		INT 10H					;显示字符7
+		MOV AX, 0020H
+		INT 10H
+		MOV AL, 20H
+		OUT 20H, AL				;中断结束命令
+		IRET
+ 
+SIR1:	CALL DELAY 				；延时
+		MOV AX, 0053H
+		INT 10H					;S
+		MOV AX, 0031H
+		INT 10H					;显示字符1
+		MOV AX, 0020H
+		INT 10H
+		MOV AL, 20H
+		OUT 0A0H, AL
+		OUT 20H, AL
+		IRET
+ 
+DELAY:	PUSH CX
+		MOV CX, 0F00H
+ 
+AA0:		PUSH AX
+		POP  AX
+		LOOP AA0
+		POP CX
+		RET
+CODE		ENDS
+		END  START

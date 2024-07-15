@@ -1,0 +1,68 @@
+p8255a equ 0600h
+p8255b equ 0602h
+p8255c equ 0604h
+p8255mode equ 0606h
+
+code segment 
+     assume cs:code
+     
+start:  mov al,90h
+        mov dx,p8255mode
+        out dx,al;送控制字
+        
+       ;写入中断向量 
+       push ds
+       mov ax,0000h
+       mov ds,ax
+       mov ax,offset mir6
+       mov si,0038h
+	   mov [si],ax
+	   mov ax,cs
+	   mov si,003ah
+	   mov [si],ax
+	   cli ;关中断
+	   
+
+	   ;初始化主片8259
+	    mov al,13h	;icw1		11h
+		out 20h,al
+		mov al,08h	; icw2
+		out 21h,al		
+		mov al,07h	;icw4
+		out 21h,al
+		mov al,0afh	;ocw		bfh
+		out 21h,al
+        mov bx,01h;0表示转换完成，1表示转换没有完成
+        pop ds
+        sti
+
+
+a1:     cli
+        mov dx,0642h
+        out dx,al;开启采样
+        sti
+        
+a2:     cmp bx,0;0表示完成转换
+        jz a3;bx=0,跳转到读取采样结果处
+        jmp a2
+        
+a3:     mov dx,0642h
+        in al,dx;读取采样结果  /////////////////////////////////////////////////////////////////////////////////////////////////0640h
+             
+        mov dx,0602h
+        out dx,al;送led 
+        
+        mov bx,01h
+        jmp a1;读取完成之后跳转到a1开始新一轮的转换
+
+
+        
+mir6:   push ax
+        mov bx,0 
+        mov al,20h;中断结束
+        out 20h,al
+        pop ax
+        iret
+
+code ends
+end start 

@@ -1,0 +1,109 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<iostream>
+#include<vector>
+using namespace std;
+const int maxn = 1000;
+
+struct Edge {
+	int preadj;
+	int veradj;
+	int cost;
+	Edge* link;
+	Edge(int p, int v, int c) :preadj(p), veradj(v), cost(c), link(nullptr) {}
+};
+struct Vertex {
+	int vername;
+	vector<Edge*> adjacent;
+	
+};
+int n, e;
+
+void buildve( vector<Vertex>& vt, vector<int>& ve, vector<int>& path) {
+	for (int i = 1; i <= n; ++i) {
+		for (Edge* p : vt[path[i]].adjacent) {
+			int k = p->veradj;
+			if (ve[path[i]] + p->cost > ve[k])
+				ve[k] = ve[path[i]] + p->cost;
+		}
+	}
+}
+void buildvl(vector<Vertex>& vt, vector<int>& ve, vector<int>& path,vector<int>& vl) {
+	for (int i = 1; i <= n; ++i) vl[i] = ve[path[n]];
+	for (int i = n; i >= 1; i--) {
+		for (Edge* p : vt[path[i]].adjacent) {
+			int k = p->veradj;
+			if (vl[k] - p->cost < vl[path[i]])
+				vl[path[i]] = vl[k] - p->cost;
+		}
+	}
+}
+void buildEL(vector<Vertex>& vt, vector<int>& ve, vector<int>& vl) {
+	for (int i = 1; i <= n; ++i) {
+		for (Edge* p : vt[i].adjacent) {
+			int k = p->veradj;
+			int e = ve[i];
+			int l = vl[k] - p->cost;
+			if (e == l) printf("%d->%d\n", i, k);
+		}
+	}
+}
+void qsort(vector<Vertex>& vt,int k, int l, int r) {
+	if (l >= r) return;
+	int i = l - 1, j = r + 1;
+	int mid = (l + r) >> 1;
+	int x = vt[k].adjacent[mid]->veradj;
+	while (i < j) {
+		do i++; while (vt[k].adjacent[i]->veradj < x);
+		do j--; while (vt[k].adjacent[j]->veradj > x);
+		if (i < j) swap(vt[k].adjacent[i], vt[k].adjacent[j]);
+	}
+	qsort(vt,k, l, j);
+	qsort(vt,k, j + 1, r);
+}
+void sortadj(vector<Vertex>& vt) {
+
+	for (int k = 1; k <= n; ++k) {
+		int m = vt[k].adjacent.size();
+		qsort(vt,k, 0, m - 1);
+	}
+}
+int main() {
+	while(scanf("%d%d", &n, &e)!=EOF) {
+		vector<Vertex> vt(maxn);
+		vector<int> path(maxn), ve(maxn, 0), vl(maxn), vE(maxn), vL(maxn);
+		for (int i = 1; i <= n; ++i) vt[i].vername = i;
+		vector<int> nums(maxn, 0), visited(maxn, 0);
+		while (e--) {
+			int a, b, c;
+			scanf("%d%d%d", &a, &b, &c);
+			Edge* t = new Edge(a, b, c);
+			vt[a].adjacent.push_back(t);
+			nums[b]++;
+		}
+		sortadj(vt);
+		int k0 = 0;
+		for (int i = 1; i <= n; ++i)
+		{
+			if (visited[i] == 1) continue;
+			if (nums[i] == 0) {
+				for (Edge* t : vt[i].adjacent) {
+					nums[t->veradj]--;
+				}
+				path[++k0] = i;
+				visited[i] = 1;
+				i = 0;
+			}
+		}
+		if (k0 != n) {
+			printf("unworkable project\n");
+		}
+		else {
+			buildve(vt,ve,path);
+			buildvl(vt,ve,path,vl);
+			printf("%d\n", ve[path[n]]);
+			buildEL(vt,ve,vl);
+		}
+        
+	}
+	return 0;
+}

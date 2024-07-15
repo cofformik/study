@@ -1,0 +1,27 @@
+stack segment
+    dw 128 dup(0)
+    stack ends
+code segment
+assume cs:code
+    start:  
+    mov al,90h
+    mov dx,0646h;//控制寄存器
+    out dx,al
+    A:mov dx,0640h;//PA端口
+    in al,dx;//读端口，从后面的端口读数据放入前面的寄存器中
+    cmp al,0ffh
+    jz B;//ZF=1时候跳转，ZF为0标志位
+    mov dx,0642h;//PB端口
+    out dx,al;//写端口，后面的值写到前面的端口中
+    jmp A
+    
+    B:mov ah,4ch
+    int 21h;//
+
+    code ends
+    end start 
+;//IOY1----CS
+;//XA1,XA2---A0,A1
+;//mov al,90h
+;//cmp al,0ffh
+;//IOY0～IOY3 I/O接口待扩展信号（输出）

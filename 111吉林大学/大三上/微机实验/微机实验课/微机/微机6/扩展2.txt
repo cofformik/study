@@ -1,0 +1,27 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+
+		mov dx, con8254
+		mov al, 76h             	;8254计数器1工作在方式3，产生方波。 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 00h
+		out dx, al 
+		mov al, 048h             	;写入计数初值04800h 计数初值取决于clk1的输入
+		out dx, al 
+aa1: 
+		jmp aa1 
+;将gate1置为高电平，运行程序，在示波器中可以看到out1规律输出方波。
+;clk1输入为18.432khz 用计时器1计数18432次 得到周期为1s的方波。
+;除此外实验箱上还有184.32khz和1.8432mhz的时钟频率
+;
+code 	ends 
+		end start

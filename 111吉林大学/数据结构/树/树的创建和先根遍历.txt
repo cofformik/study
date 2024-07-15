@@ -1,0 +1,91 @@
+#include <iostream>
+#include <vector>
+using namespace std;
+
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+};
+
+TreeNode* buildTree(){
+    int reg;
+    cin>>reg;
+    if(0==reg)return nullptr;
+    TreeNode* t=new TreeNode(reg);
+    t->left=buildTree();
+    t->right=buildTree();
+    return t;
+    
+}
+//先跟
+
+void preorder(TreeNode* root, int ans, int& flag) {
+    if (root == nullptr||flag==1) return;
+    if ((root->left && root->left->val == ans) || (root->right && root->right->val == ans)) {
+        flag = 1;
+        cout << root->val << endl;
+        return;
+    }
+    preorder(root->left, ans, flag);
+    preorder(root->right, ans, flag);
+}
+//中跟
+void inorderTree(TreeNode* root,vector<int>& ans){
+       if(!root) return;
+        TreeNode* t=root;
+            inorderTree(t->left,ans);
+        ans.push_back(t->val);
+            inorderTree(t->right,ans);
+       
+    }
+    vector<int> inorderTraversal(TreeNode* root) {
+        vector<int> ans={};
+        inorderTree(root,ans);
+       
+        return ans;
+    }
+//后跟
+   vector<int> postorderTraversal(TreeNode* root) {
+        vector<int> reg;
+        stack<TreeNode*> s;
+        TreeNode* t=root,*pre=nullptr;
+        while(true){
+            while(t!=nullptr){
+                s.push(t);
+                t=t->left;
+            }
+            if(s.empty()) break;
+            t=s.top();
+            if(t->right==nullptr||t->right==pre)
+                {
+                    reg.push_back(t->val);
+                    s.pop();
+                    pre=t;
+                    t=nullptr;
+
+                }
+                else
+                t=t->right;
+        }
+        return reg;
+    }
+//非递归先跟
+   vector<int> inorderTraversal(TreeNode* root) {
+        vector<int> reg;
+        TreeNode* t=root;
+        stack<TreeNode*> s;
+        while(1){
+            while(t!=nullptr){
+                s.push(t);
+                t=t->left;
+            }
+            if(s.empty()) break;
+            t=s.top();
+            s.pop();
+            reg.push_back(t->val);
+            t=t->right;
+        }
+        return reg;
+    }

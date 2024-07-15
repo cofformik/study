@@ -1,0 +1,75 @@
+;8255接口初始化，由cs连接的ioy端口决定。这里用的是ioy0。
+a8255_con equ 0606h
+a8255_a equ 0600h
+a8255_b equ 0602h
+a8255_c equ 0604h
+;数码管的数据表，分别表示303271 从右向左点亮 从左往右看就是数字"172303"了 我的学号后六位 
+data 	segment
+table1:
+		db 6dh
+		db 3fh
+		db 6fh
+		db 3fh
+		db 6fh
+		db 06h
+value	db 20h;0010 0000						;用于开关控制
+data 	ends
+code 	segment
+		assume cs:code,ds:data
+start:
+		mov ax,data
+		mov ds,ax
+		lea si,table1
+		mov dx,a8255_con
+		mov al,89h					;89h=10001001b a口方式0 输出 b口方式0 输出 c口 输入（高四位和低四位均用于输入）
+		out dx,al
+		;当初测试用的遗留代码
+		mov dx,a8255_b
+		mov al,3fh
+		out dx,al
+		mov dx,a8255_a
+		mov al,00h
+		out dx,al
+		;位选信号置0 相应数码管点亮
+x2:    
+		mov cx,06h					;循环6次
+		mov bx,0000h;控制键码的偏移
+		mov value,20h				;开放数码管6，用于测试每一位是都被打开
+		mov al,11011111b			;数码管6将要点亮
+x1: 
+		push ax
+		mov dx,a8255_c
+		in  al,dx					;读入c口状态 即开关状态
+		test value,al				;测试控制相应数码管的开关是否打开 这里为正逻辑 1点亮 0熄灭，TEST AX,BX 与 AND AX,BX 命令有相同效果，只是Test指令不改变AX和BX的内容，而AND指令会把结果保存到AX中。
+		jz a1						;相应开关为0 应熄灭 转a1
+		pop ax						;开关为1 应点亮 继续往下执行
+		mov dx,a8255_a
+		out dx,al	
+a2:		ror value,1					;调整 开放下一个数码管
+		ror al,1					;调整 将要点亮下一个数码管
+		push ax
+		mov al,[bx+si]
+		mov dx,a8255_b
+		out dx,al					;在相应数码管上显示相应数字 如果开关为1的话
+		pop ax
+		call delay
+		inc bx
+		loop x1
+		jmp x2
+a1: 								;处理熄灭
+		mov al,11111111b			;所有位选信号不选中 0为选中 1为不选中
+		mov dx,a8255_a
+		out dx,al
+		pop ax
+		jmp a2  
+
+  
+delay:
+		push cx
+		mov cx,0ffh					;由于要显示稳定的数字"172303" 延时要短
+x4:
+		loop x4						
+		pop cx
+		ret
+code 	ends
+		end start

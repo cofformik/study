@@ -1,0 +1,84 @@
+m8251_data equ 0600h             ;8251数据端口地址
+m8251_con equ 0602h              ;8251控制端口地址
+m8254_2 equ 06c4h                ;8254计数器2端口地址
+m8254_con equ 06c6h              ;8254控制寄存器端口地址
+;关于接线 rxclk txclk out2 clk2 gate2 已在机箱内部接好 
+sstack  segment stack
+		dw 64 dup(?)
+sstack  ends
+ 
+code 	segment
+		assume cs:code
+start:  
+		mov ax, 0000h
+		mov ds, ax
+ 
+		;初始化 8254，得到收发时钟
+		mov al, 0b6h			;计数器2 先读/写低8位再读/写高8位 方式3 二进制数
+		mov dx, m8254_con
+		out dx, al
+		mov al, 0ch
+		mov dx, m8254_2
+		out dx, al
+		mov al, 00
+		out dx, al
+ 
+		mov dx, m8251_con
+		mov al, 00h
+		out dx, al
+		call delay
+		;复位 8251
+ 
+		mov al, 40h
+		out dx, al
+		call delay
+ 
+		mov al,7eh
+		out dx, al          	;写入8251方式字7eh=01111110b，详见实验讲义p59
+		call delay				;1位停止位 偶校验 字符长度8位 比特率系数16
+ 
+		mov al, 34h
+		out dx, al             	;写入8251控制字34h=00110100b，详见实验讲义p60
+		call delay				;
+ 	
+		mov di, 4000h           ;写入地址
+		mov si, 3000h           ;读入地址
+		mov cx, 000ah           ;循环10次
+a1: 
+		mov al, [si]
+		push ax
+		mov al, 37h				;数据终端准备好了
+		mov dx, m8251_con
+		out dx, al
+		pop ax
+		mov dx, m8251_data
+		out dx, al             	;发送数据
+		mov dx, m8251_con
+a2: 
+		in al, dx              	;判断发送缓冲是否为空
+		and al, 01h
+		jz a2
+		call delay
+a3: 
+		in al, dx             	;判断是否接收到数据
+		and al, 02h
+		jz a3
+		mov dx, m8251_data
+		in al, dx              	;读取接收到的数据
+		mov [di], al
+		inc di
+		inc si
+		loop a1               	;循环10次
+ 
+		mov ah,4ch
+		int 21h                	;程序终止
+ 
+delay:                        	;延时子程序
+		push cx
+		mov cx,3000h
+a5: 
+		loop a5
+		pop cx
+		ret
+code 	ends
+		end start

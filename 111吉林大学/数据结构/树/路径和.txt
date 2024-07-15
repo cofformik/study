@@ -1,0 +1,59 @@
+#include<iostream>
+#include<vector>
+using namespace std;
+struct TreeNode{
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x=0):val(x),left(nullptr),right(nullptr){}
+};
+TreeNode* buildTree(){
+    int k;
+    cin>>k;
+    if(!k) return nullptr;
+    TreeNode* root=new TreeNode(k);
+    root->left=buildTree();
+    root->right=buildTree();
+    return root;
+}
+void find_path(TreeNode* t,vector<vector<int>>& path,int& i,int& len,int targetlen){
+    if(!t) return;
+    len+=t->val;
+    path[i].push_back(t->val);
+    if(t->left==nullptr&&t->right==nullptr){
+        if(len==targetlen){
+            path[i+1]=path[i];
+            ++i;
+        }
+            path[i].pop_back();
+            len-=t->val;
+            return; 
+    }
+    find_path(t->left,path,i,len,targetlen);
+    find_path(t->right,path,i,len,targetlen);
+    path[i].pop_back(); 
+    len-=t->val;
+}
+void print(vector<int> path){
+    if(path.empty()) {
+        cout<<"0"<<endl;
+        return;
+    }
+    for(int i=0;i<path.size();++i){
+        cout<<path[i]<<" ";
+    }
+    cout<<endl;
+}
+int main(){
+    TreeNode* root=buildTree();
+    int targetlen;
+    cin>>targetlen;
+    int len=0,i=0;
+    vector<vector<int>> path(202);
+    find_path(root,path,i,len,targetlen);
+    cout<<i<<endl;
+    for(int j=0;j<i;++j){
+        print(path[j]);
+    }
+    return 0;
+}

@@ -1,0 +1,200 @@
+MY8255_A EQU 0600H
+MY8255_B EQU 0602H
+MY8255_C EQU 0604H
+MY8255_CON  EQU 0606H
+ 
+DATA SEGMENT
+    DTABLE  DB 00H,3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,6FH,77H,7CH,39H,5EH,79H,71H		
+DATA ENDS
+
+
+CODE SEGMENT
+    ASSUME CS:CODE,DS:DATA
+START:  
+    MOV AX, DATA				;装载数据段
+    MOV DS, AX
+    MOV SI, 3000H			
+    MOV AL, 00H
+    MOV [SI], AL        	
+    MOV [SI+1], AL		
+    MOV [SI+2], AL			
+    MOV [SI+3], AL		
+    MOV [SI+4], AL			
+    MOV [SI+5], AL			
+	MOV [SI+6], AL          ;管6移出
+	MOV DI, 3000H  
+	
+	MOV DX, 0606H  		   
+	MOV AL, 81H			
+	OUT DX, AL
+BEGIN:  
+	CALL SHOW               
+	CALL CLEAR             
+	CALL SCAN           
+	JNZ INK1				
+	JMP BEGIN
+ 
+INK1:  
+	CALL SHOW
+	CALL DALLY				;消除前沿抖动
+	CALL DALLY
+	CALL CLEAR
+	CALL SCAN				;再次扫描按键
+	JNZ INK2                ;有键按下，转到 INK2
+	JMP BEGIN
+	
+;确定按下键的位置
+INK2:  
+	MOV CH,0FEH				;X1
+	MOV CL,00H			
+ 
+COLUM:  
+	MOV AL,CH				
+	MOV DX,0600H
+	OUT DX,AL
+	MOV DX,0604H			;读Y1~Y4，用于判断是哪一行按键闭合
+	IN 	AL,DX
+L1: 
+	TEST AL, 01H            
+	JNZ L2				
+	MOV AL, 01H             ;行开头
+	JMP KCODE
+L2: 
+	TEST AL, 02H             
+	JNZ L3					
+	MOV AL, 05H             
+	JMP KCODE
+L3: 
+	TEST AL, 04H            
+	JNZ L4					
+	MOV AL, 09H              
+	JMP KCODE
+L4: 
+	TEST AL, 08H             
+	JNZ NEXT				
+	MOV AL, 0DH               
+	
+KCODE:  
+	ADD AL, CL				
+	CALL COUT			 	;输出到缓冲区，AX：按键
+	
+	PUSH AX
+KON: 
+	CALL SHOW				
+	CALL CLEAR				
+	CALL SCAN				;扫描按键，判断按键是否弹起
+	JNZ KON					;未弹起则继续循环等待弹起
+	POP AX    
+	
+NEXT:  
+	INC CL				
+	MOV AL,CH				
+	TEST AL,08H				;检测是否扫描到第4列
+	JZ KERR				
+	ROL AL,1			
+	MOV CH, AL				
+	JMP COLUM
+KERR:  
+	JMP BEGIN
+
+
+COUT: 
+	PUSH AX 
+		
+	MOV DI,3006H			;3006 <- 1
+	MOV SI,3005H
+	MOV AL,[SI]
+	MOV [DI],AL     
+		
+	MOV DI,3005H			;1 <- 2
+	MOV SI,3004H
+	MOV AL,[SI]
+	MOV [DI],AL 
+		
+	MOV DI,3004H			
+	MOV SI,3003H
+	MOV AL,[SI]
+	MOV [DI],AL  
+		
+	MOV DI,3003H		
+	MOV SI,3002H
+	MOV AL,[SI]
+	MOV [DI],AL  
+		
+	MOV DI,3002H		
+	MOV SI,3001H
+	MOV AL,[SI]
+	MOV [DI],AL  
+		
+	MOV DI,3001H			
+	MOV SI,3000H
+    MOV AL,[SI]
+	MOV [DI],AL  
+	
+    POP AX 	
+	MOV [SI],AL				;6 <- KEY
+GOBACK: 
+	RET
+		
+SCAN: 						;扫描是否有按键闭合
+	MOV AL,00H             
+	MOV DX,0600H			;将4列全选通
+	OUT DX,AL
+	MOV DX,0604H
+	IN 	AL,DX				
+	NOT AL						
+	AND AL,0FH				
+	RET
+	
+CLEAR:  					
+	MOV DX,0602H        
+	MOV AL,00H
+	OUT DX,AL
+	RET
+	
+SHOW: 						;显示键值子程序
+	PUSH AX    				;以缓冲区存放的键值为键值表偏移找到键值并显示             
+	MOV SI,3000H			
+	MOV DL,0DFH				;DFH=11011111B
+	MOV AL,DL
+AGAIN:  
+	PUSH DX
+	MOV DX,0600H
+	OUT DX,AL				
+    
+	MOV AL,[SI]				;取出缓冲区中存放键值
+	MOV BX,OFFSET DTABLE	
+	AND AX,00FFH
+	ADD BX,AX				
+	MOV AL,[BX]				
+	MOV DX,0602H
+	OUT DX,AL				;写入数码管A~Dp
+    
+	CALL DALLY
+	INC SI					
+	POP DX
+	
+	MOV AL,DL
+	TEST AL,01H				;判断是否显示完
+	JZ OUT1					
+	ROR AL,1
+	MOV DL,AL
+	JMP AGAIN				
+OUT1:  
+	POP AX				
+	RET
+
+
+DALLY:  
+	PUSH CX                	;延时子程序
+	MOV CX,0006H
+T1: 	
+	MOV AX,009FH
+T2: 
+	DEC AX
+	JNZ T2
+	LOOP T1
+	POP CX
+	RET
+CODE 	ENDS
+	END START

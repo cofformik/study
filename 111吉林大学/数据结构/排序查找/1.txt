@@ -1,0 +1,19 @@
+//快拍
+
+int Partition(int a[],int m,int n){
+    int k=a[m],head=m+1,rear=n;
+    while(head<=rear){
+        while(head<=n && a[head]<=k) head++;
+        while(a[rear]>mid) rear++;
+        if(head<rear) swap(a[head],a[rear]);
+    }
+    swap(a[rear],a[m]);
+    return rear;
+}
+void quick_sort(int a[],int m,int n){
+    if(m<n){
+        int mid=Partition(a,m,n);
+        quick_sort(a,m,mid-1);
+        quick_sort(a,mid+1,n);
+    }
+}

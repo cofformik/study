@@ -1,0 +1,34 @@
+code 	segment
+		assume  cs:code 
+start:
+		;产生阶梯波
+		mov cx, 0ffffh     	;产生阶梯波的周期数为0ffff次， 
+		mov ax, 0feh       
+		;波形振幅最大值为0ffh
+		;考虑到8086的div除法可能会出现余数为负导致加起来之后的最大值大于0ffh，故使用0feh作最大值
+		mov bl,05h         	;阶梯波中的阶梯数
+		div bl             	;用最大振幅除以阶梯数，得到每个台阶的高度
+		mov bl, al         	;将上述除法的商保存在bl中
+		mov bh, 00h        	;bh置0
+aa0:
+		mov ax,0000h       	;ax初始化0000h
+aa1:
+		mov dx, 0600h
+		out dx, al
+		cmp ax, 00ffh      	;判断ax是否达到幅度上线
+		ja aa2            	;达到上限，表示一次阶梯波完整生成，开始新一次生成，ja大于则跳转
+		call delay       	
+		add ax, bx         	;用当前阶梯高度加上每个阶梯的高度得到下一阶梯的高度
+		jmp aa1
+aa2:    
+		loop aa0
+ 
+delay:               		
+		push cx
+		mov cx, 0ffffh
+d2: 
+		pop cx
+		ret
+ 
+code 	ends
+		end start

@@ -1,0 +1,37 @@
+
+p8255a equ 0600h
+p8255b equ 0602h
+p8255c equ 0604h
+p8255mode equ 0606h
+
+code segment 
+     assume cs:code
+start:  mov al,90h
+        mov dx,p8255mode
+        out dx,al;送控制字
+  
+        
+a1:     mov dx,642h
+        out dx,al;开启采样
+        
+        call delay;延时
+        in al,dx;读取采样结果
+        
+        
+        mov dx,p8255b
+        out dx,al;送led
+        jmp a1
+        
+delay:  push cx
+        mov cx,0ffffh
+a2:        
+        loop a2
+        pop cx
+        ret
+
+code ends
+end start        
+
+
+
+      

@@ -1,0 +1,48 @@
+
+p8255a equ 0600h
+p8255b equ 0602h
+p8255c equ 0604h
+p8255mode equ 0606h
+
+code segment 
+     assume cs:code
+start:  mov al,90h
+        mov dx,p8255mode
+        out dx,al;送控制字
+        
+        mov dx,p8255b
+        mov al,0ffh
+        out dx,al
+        
+
+        
+a1:     mov dx,0642h
+        out dx,al;开启采样
+
+a2:     mov dx,p8255a
+        in al,dx;从A口读出EOC状态
+        test al,80h
+        jnz a2;高电平表示还没开始转换
+        
+a3:     mov dx,p8255a
+        in al,dx;从A口读出EOC状态
+        test al,80h
+        jz a3;高电平表示转换完成       
+        
+        mov dx,0642h
+        in al,dx;读取采样结果
+        
+        ;mov al,0f0h
+        
+        
+        mov dx,p8255b
+        out dx,al;送led
+        jmp a1
+        
+
+code ends
+end start        
+
+
+
+      

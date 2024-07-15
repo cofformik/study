@@ -1,0 +1,49 @@
+p0809a equ 0640h
+p0809b equ 0642h
+
+p8255a equ 0600h
+p8255b equ 0602h
+p8255c equ 0604h
+p8255mode equ 0606h
+
+code segment 
+     assume cs:code
+start:  mov al,90h
+        mov dx,p8255mode
+        out dx,al;送控制字
+        
+        mov dx,p8255b
+        mov al,0ffh
+        out dx,al
+        
+        
+        mov dx,p0809b
+        mov al,00h
+        out dx,al;启动0通道
+        
+a1:     mov dx,p0809a
+        mov al,00h
+        out dx,al;开启采样
+
+a2:     mov dx,p8255a
+        in al,dx;从A口读出EOC状态
+        test al,80h
+        jnz a2;高电平表示还没转换完成
+        
+        mov dx,p0809a
+        in al,dx;读取采样结果
+        
+        
+        mov dx,p8255b
+        out dx,al;送led
+        jmp a1
+        
+mov ah,4ch
+int 21h
+
+code ends
+end start        
+
+
+
+      

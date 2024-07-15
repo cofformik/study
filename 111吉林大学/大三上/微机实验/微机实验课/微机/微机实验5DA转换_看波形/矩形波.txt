@@ -1,0 +1,25 @@
+code 	segment
+		assume  cs:code
+start: 
+		;产生矩形波
+		mov cx, 05h       	;产生矩形波的周期数为5次
+aa1:
+		mov dx, 0600h
+		mov al, 00h       	;先输出00h的波形
+		out dx, al
+		call delay       	
+		mov al, 0ffh      	;再输出0ffh的波形
+		out dx, al
+		call delay      
+		loop aa1
+ 
+delay:               		
+		push cx
+		mov cx, 0ffffh
+d2: 
+		loop d2
+		pop cx
+		ret
+ 
+code 	ends
+		end start

@@ -1,0 +1,56 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<iostream>
+#include<vector>
+using namespace std;
+const int maxn = 220;
+const int INF = 0x3f3f3f3f;
+int n, e;
+int findmin(const vector<int>& s, const vector<int>& lowcost) {
+	int v = -1, min = INF;
+	for (int i = 0; i < n; ++i) {
+		if (s[i] == 0 && lowcost[i] < min) {
+			min = lowcost[i];
+			v = i;
+		}
+	}
+	return v;
+}
+int Prim(int G[maxn][maxn], int u) {
+	int ans = 0;
+	vector<int> s(maxn, 0), lowcost(maxn, INF);
+	lowcost[u] = 0;
+	for (int i = 0; i < n; ++i) {
+		int v = findmin(s, lowcost);
+		if (v == -1) return -1;
+		ans += lowcost[v];
+		s[v] = 1;
+		for (int j = 0; j < n;++j) {
+			if (s[j] == 0 && G[v][j]<lowcost[j]) {
+				lowcost[j] = G[v][j];
+			}
+		}
+	}
+	return ans;
+}
+int main() {
+	while (scanf("%d%d", &n, &e) != EOF) {
+		int G[maxn][maxn];
+		while (e--) {
+			int a, b, c;
+			scanf("%d%d%d", &a, &b, &c);
+			G[a][b] = c;
+            G[b][a]=c;
+		}
+		int ans = -1, minl = INF;
+		for (int i = 0; i < n; ++i) {
+			int k = Prim(G,i);
+            cout<<i<<" "<<k<<endl;
+			if (k == -1) continue;
+			else if (k < minl) {
+				minl = k;
+				ans = i;
+			}
+		}
+		//printf("%d\n", ans);
+	}
+}

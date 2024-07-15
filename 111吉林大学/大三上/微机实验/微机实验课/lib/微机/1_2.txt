@@ -1,0 +1,26 @@
+stacksg segment stack
+    dw   128  dup(0)
+stacksg ends
+code segment 'code'
+assume cs:code
+start:  
+
+mov al,90H
+mov dx,0646h
+out dx,al
+AB: mov dx,0640h
+in al,dx
+mov dx,0642h
+and al,01H
+jz llow
+mov al,0f0h
+jmp OP
+llow: mov al,0fh
+OP: out dx,al
+jmp AB
+
+AC: mov ah,4ch
+int 21h
+ends
+
+end start

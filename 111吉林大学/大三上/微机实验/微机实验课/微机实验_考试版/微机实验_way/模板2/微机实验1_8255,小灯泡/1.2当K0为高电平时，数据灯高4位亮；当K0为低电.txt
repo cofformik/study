@@ -1,0 +1,38 @@
+stack segment
+dw 32 dup(0)
+stack ends
+
+code segment
+assume cs:code
+start:
+     mov dx,0646h
+     mov al,10010000b
+     out dx,al
+     
+a1:  mov dx,0640h
+     in al,dx
+     and al,01h
+     jz a5;di
+     jne a4;gao
+     
+a3:  mov dx,0642h
+     out dx,al
+     jmp a1
+     
+     
+a2:  mov al,00h
+     mov dx,0642h
+     out dx,al
+     
+a4:  mov al,0fh
+     jmp a3;di
+     
+a5:  mov al,0f0h
+     jmp a3;gao
+
+  
+     code ends
+     end start
+     
+
+     

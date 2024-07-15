@@ -1,0 +1,433 @@
+;8255接口初始化，由cs连接的ioy端口决定。这里用的是ioy0。
+my8255_a equ 0600h
+my8255_b equ 0602h
+my8255_c equ 0604h
+my8255_con  equ 0606h
+sstack  segment stack
+		dw 16 dup(?)
+sstack  ends
+ 
+data 	segment
+		dtable  db 00h,3fh,06h,5bh,4fh,66h,6dh,7dh,07h,7fh,6fh,77h,7ch,39h,5eh,79h,71h		;熄灭 0~9 a~f
+data 	ends
+
+
+code 	segment
+		assume cs:code,ds:data
+start:  
+		mov ax,data				;装载数据段
+		mov ds,ax
+		mov si,3000h			;建立缓冲区，存放要显示的键值
+		mov al,00h
+		mov [si],al        		;管6 清显示缓冲
+		mov [si+1],al			;管5
+		mov [si+2],al			;管4
+		mov [si+3],al			;管3
+		mov [si+4],al			;管2
+		mov [si+5],al			;管1
+		mov di,3000h
+		
+		mov dx,my8255_con  		;写 8255 控制字
+		mov al,81h				;81h=10000001 a口方式0 输出 b口方式0 输出 c口低四位 输入
+		out dx,al
+begin:  
+		call dis                ;调用显示子程序
+		call clear              ;清屏
+		call ccscan             ;扫描按键
+		jnz ink1				
+		jmp begin
+ 
+ink1:  
+		call dis
+		call delay				;消除前沿抖动
+		call delay
+		call clear
+		call ccscan				;再次扫描按键
+		jnz ink2                ;有键按下，转到 ink2
+		jmp begin
+	
+;确定按下键的位置
+ink2:  
+		mov ch,0feh				;11111110b 刚开始选取第一列
+		mov cl,00h				;设置当前检测的是第几列
+ 
+colum:  
+		mov al,ch				;选取一列，将x1~x4中一个置0
+		mov dx,my8255_a
+		out dx,al
+		mov dx,my8255_c			;读y1~y4，用于判断是哪一行按键闭合
+		in 	al,dx
+l1: 
+		test al,01h             ;是否为第1行
+		jnz l2					;不是则继续判断
+		mov al,01h              ;设置第1行第1列对应的键值
+		jmp kcode
+l2: 
+		test al,02h             ;是否为第2行
+		jnz l3					;不是则继续判断
+		mov al,05h              ;设置第2行第1列对应的键值
+		jmp kcode
+l3: 
+		test al,04h             ;是否是第3行
+		jnz l4					;不是则继续判断
+		mov al,09h              ;设置第3行第1列对应的键值
+		jmp kcode
+l4: 
+		test al,08h             ;是否是第4行
+		jnz next				;不是则继续判断
+		mov al,0dh              ;设置第4行第1列对应的键值
+kcode:  
+		add al,cl				;将第1列的值加上当前列数，确定按键值,al就是从键盘中读出来的键值
+		call putbuf				;保存按键值
+		push ax
+kon: 
+		call dis				;显示刷新
+		call clear				;清屏
+		call ccscan				;扫描按键，判断按键是否弹起
+		jnz kon					;未弹起则继续循环等待弹起
+		pop ax
+next:  
+		inc cl					;当前检测的列数递增
+		mov al,ch				
+		test al,08h				;检测是否扫描到第4列
+		jz kerr					;是则跳回到开始处
+		rol al,1				;没检测到第4列则准备检测下一列
+		mov ch,al				
+		jmp colum
+kerr:  
+		jmp begin
+
+;
+;	数码管1		数码管2		数码管3		数码管4		数码管5		数码管6
+;	  左<---------------------------------------------------------右
+;
+
+putbuf: 
+		push ax
+		mov di,3006h			;数码管1显示的数字移出数码管（即最左侧的数字移出数码管）
+		mov si,3005h;si,di作为两个中间的值用来实现数值的交换
+		mov al,[si]
+		mov [di],al;数码管1显示之前数码管2显示的数字
+		mov di,3005h			
+		mov si,3004h
+		mov al,[si]
+		mov [di],al;数码管2显示之前数码管3显示的数字
+		mov di,3004h			
+		mov si,3003h
+		mov al,[si]
+		mov [di],al;数码管3显示之前数码管4显示的数字
+		mov di,3003h			
+		mov si,3002h
+		mov al,[si]
+		mov [di],al;数码管4显示之前数码管5显示的数字
+		mov di,3002h			
+		mov si,3001h
+		mov al,[si]
+		mov [di],al;数码管5显示之前数码管6显示的数字
+		mov di,3001h			
+		mov si,3000h
+        mov al,[si]
+		mov [di],al
+        pop ax 	
+		mov [si],al				;存键盘值到相应位的缓冲中（数码管6显示新键入的数字）
+goback: 
+		ret
+		
+ccscan: 						;扫描是否有按键闭合
+		mov al,00h             
+		mov dx,my8255_a			;将4列全选通，x1~x4置0
+		out dx,al
+		mov dx,my8255_c
+		in 	al,dx				;读y1~y4
+		not al						
+		and al,0fh				;取出y1~y4的反值
+		ret
+	
+clear:  						;清屏子程序
+		mov dx,my8255_b         ;段位置0即可清除数码管显示
+		mov al,00h
+		out dx,al
+		ret
+	
+dis: 							;显示键值子程序
+		push ax    				;以缓冲区存放的键值为键值表偏移找到键值并显示             
+		mov si,3000h			
+		mov dl,0dfh				;dfh=11011111b
+		mov al,dl
+again:  
+		push dx
+		mov dx,my8255_a
+		out dx,al				;设置x1~x6，选通一个数码管
+    
+		mov al,[si]				;取出缓冲区中存放键值
+		mov bx,offset dtable	
+		and ax,00ffh
+		add bx,ax				
+		mov al,[bx]				;将键值作为偏移和键值基地址相加得到相应的共阴极数码管编码
+		mov dx,my8255_b
+		out dx,al				;写入数码管a~dp
+    
+		call delay
+		inc si					;取下一个键值
+		pop dx
+		mov al,dl
+		test al,01h				;判断是否显示完，因为每次显示之后都是右移，所以判断最后是不是0就知道显示完成没有
+		jz out1					;显示完，返回
+		ror al,1
+		mov dl,al
+		jmp again				;未显示完，跳回继续
+out1:  
+		pop ax				
+		ret
+
+
+delay:  
+		push cx                	;延时子程序
+		mov cx,0006h
+t1: 	
+		mov ax,009fh
+t2: 
+		dec ax
+		jnz t2
+		loop t1
+		pop cx
+		ret
+		
+		
+code 	ends
+		end start
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;8255接口初始化，由CS连接的IOY端口决定。这里用的是IOY0。
+MY8255_A EQU 0600H
+MY8255_B EQU 0602H
+MY8255_C EQU 0604H
+MY8255_CON  EQU 0606H
+SSTACK  SEGMENT STACK
+		DW 16 DUP(?)
+SSTACK  ENDS
+ 
+DATA 	SEGMENT
+		DTABLE  DB 00H,3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,6FH,77H,7CH,39H,5EH,79H,71H		;熄灭 0~9 A~F
+		VALUE   DB	01000000B			;用于确定开放指定的显示位置
+		FLA		DB 	00H					;用于标志移动方向 初始00H代表向左移动（从数码管6向数码管1） 01H代表向右移动
+DATA 	ENDS
+
+;
+;阅读程序前 请先阅读理解《微型计算机原理与接口技术》（第二版） p296-300 行扫描法
+;
+CODE 	SEGMENT
+		ASSUME CS:CODE,DS:DATA
+START:  
+		MOV AX,DATA				;装载数据段
+		MOV DS,AX
+		MOV SI,3000H			;建立缓冲区，存放要显示的键值
+		MOV AL,00H
+		MOV [SI-1],AL
+		MOV [SI],AL        		;管6 清显示缓冲
+		MOV [SI+1],AL			;管5
+		MOV [SI+2],AL			;管4
+		MOV [SI+3],AL			;管3
+		MOV [SI+4],AL			;管2
+		MOV [SI+5],AL			;管1
+		MOV [SI+6],AL
+		MOV DI,3000H
+		MOV DX,MY8255_CON  		;写 8255 控制字
+		MOV AL,81H				;81H=10000001 A口方式0 输出 B口方式0 输出 C口低四位 输入
+		OUT DX,AL
+BEGIN:  
+		CALL DIS                ;调用显示子程序
+		CALL CLEAR              ;清屏
+		CALL CCSCAN             ;扫描按键
+		JNZ INK1				
+		JMP BEGIN
+ 
+INK1:  
+		CALL DIS
+		CALL DALLY				;消除前沿抖动
+		CALL DALLY
+		CALL CLEAR
+		CALL CCSCAN				;再次扫描按键
+		JNZ INK2                ;有键按下，转到 INK2
+		JMP BEGIN
+	
+;确定按下键的位置
+INK2:  
+		MOV CH,0FEH				;11111110B 刚开始选取第一列
+		MOV CL,00H				;设置当前检测的是第几列
+ 
+COLUM:  
+		MOV AL,CH				;选取一列，将X1~X4中一个置0
+		MOV DX,MY8255_A
+		OUT DX,AL
+		MOV DX,MY8255_C			;读Y1~Y4，用于判断是哪一行按键闭合
+		IN 	AL,DX
+L1: 
+		TEST AL,01H             ;是否为第1行
+		JNZ L2					;不是则继续判断
+		MOV AL,01H              ;设置第1行第1列对应的键值
+		JMP KCODE
+L2: 
+		TEST AL,02H             ;是否为第2行
+		JNZ L3					;不是则继续判断
+		MOV AL,05H              ;设置第2行第1列对应的键值
+		JMP KCODE
+L3: 
+		TEST AL,04H             ;是否是第3行
+		JNZ L4					;不是则继续判断
+		MOV AL,09H              ;设置第3行第1列对应的键值
+		JMP KCODE
+L4: 
+		TEST AL,08H             ;是否是第4行
+		JNZ NEXT				;不是则继续判断
+		CMP CL,03H				;第4行第4列 为按键“F”
+		JZ 	QUIT				;按下“F” 则程序退出
+		MOV AL,0DH              ;设置第4行第1列对应的键值
+KCODE:  
+		ADD AL,CL				;将第1列的值加上当前列数，确定按键值
+		CALL PUTBUF				;保存按键值
+		PUSH AX
+KON: 
+		CALL DIS				;显示刷新
+		CALL CLEAR				;清屏
+		CALL CCSCAN				;扫描按键，判断按键是否弹起
+		JNZ KON					;未弹起则继续循环等待弹起
+		POP AX
+NEXT:  
+		INC CL					;当前检测的列数递增
+		MOV AL,CH				
+		TEST AL,08H				;检测是否扫描到第4列
+		JZ KERR					;是则跳回到开始处
+		ROL AL,1				;没检测到第4列则准备检测下一列
+		MOV CH,AL				
+		JMP COLUM
+KERR:  
+		JMP BEGIN
+QUIT:	MOV AH,4CH				;程序退出
+		INT 21H
+
+;
+;	数码管1		数码管2		数码管3		数码管4		数码管5		数码管6
+;	  左<---------------------------------------------------------右
+;	  左（在最左侧停一下）
+;     左--------------------------------------------------------->右
+;	 															  右（在最右侧停一下）
+;     左<---------------------------------------------------------右
+;如此往复	
+;
+
+PUTBUF: 
+		CMP DI,2FFFH			;超出右边界 数码管6
+		JNZ A1
+		INC DI					;2FFFH->3000H
+		DEC FLA					;01H->00H
+		ROL VALUE,1				;00100000B->01000000B
+A1:
+		CMP DI,3006H			;超出左边界 
+		JNZ A2
+		DEC DI					;3006H->3005H
+		INC FLA					;00H->01H
+		ROR VALUE,1				;00000001B->10000000B
+A2:
+		MOV SI,DI              	
+		MOV [SI],AL				;存键盘值到相应位的缓冲中
+		CMP FLA,01H				;移动方向标志为右移
+		JZ	A3
+		INC DI					;左移
+		ROR VALUE,1
+		JMP A4
+A3:								;右移
+		DEC DI
+		ROL VALUE,1
+A4:
+		NOP
+GOBACK: 
+		RET
+		
+CCSCAN: 						;扫描是否有按键闭合
+		MOV AL,00H             
+		MOV DX,MY8255_A			;将4列全选通，X1~X4置0
+		OUT DX,AL
+		MOV DX,MY8255_C
+		IN 	AL,DX				;读Y1~Y4
+		NOT AL						
+		AND AL,0FH				;取出Y1~Y4的反值
+		RET
+	
+CLEAR:  						;清屏子程序
+		MOV DX,MY8255_B         ;段位置0即可清除数码管显示
+		MOV AL,00H
+		OUT DX,AL
+		RET
+	
+DIS: 							;显示键值子程序
+		PUSH AX    				;以缓冲区存放的键值为键值表偏移找到键值并显示             
+		MOV SI,3000H			
+		MOV DL,0DFH
+		MOV AL,DL
+AGAIN:  
+		PUSH DX
+		TEST AL,VALUE			;当前选通的数码管是否为开放的那个数码管
+		JZ	B1	
+		MOV AL,0FFH				;否 封锁所有数码管
+B1:								;是
+		MOV DX,MY8255_A
+		OUT DX,AL				;设置X1~X6，选通一个数码管
+    	
+    	
+		MOV AL,[SI]				;取出缓冲区中存放键值
+		MOV BX,OFFSET DTABLE	
+		AND AX,00FFH
+		ADD BX,AX				
+		MOV AL,[BX]				;将键值作为偏移和键值基地址相加得到相应的共阴极数码管编码
+		MOV DX,MY8255_B
+		OUT DX,AL				;写入数码管A~Dp
+    
+		CALL DALLY
+		INC SI					;取下一个键值
+		POP DX
+		MOV AL,DL
+		TEST AL,01H				;判断是否显示完
+		JZ OUT1					;显示完，返回
+		ROR AL,1
+		MOV DL,AL
+		JMP AGAIN				;未显示完，跳回继续
+OUT1:  
+		POP AX				
+		RET
+
+
+DALLY:  
+		PUSH CX                	;延时子程序
+		MOV CX,0006H
+T1: 	
+		MOV AX,009FH
+T2: 
+		DEC AX
+		JNZ T2
+		LOOP T1
+		POP CX
+		RET
+CODE 	ENDS
+		END START

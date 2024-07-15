@@ -1,0 +1,571 @@
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <ctime>
+#include<cstring>
+
+
+#define GRIDSIZE 15
+#define judge_black 0
+#define judge_white 1
+#define grid_blank 0
+#define grid_black 1
+#define grid_white -1
+struct battletree {
+	battletree* son = NULL;
+	int color = grid_white;
+	int alpha = 20000000;
+	int beta = -20000000;
+	battletree(int c=grid_white){
+		color=c;
+	}
+};
+using namespace std;
+int currBotColor; // 本方所执子颜色（1为黑，-1为白，棋盘状态亦同）
+int gridInfo[GRIDSIZE][GRIDSIZE] = { 0 }; // 先x后y，记录棋盘状态
+int dx[] = { -1,-1,-1,0,0,1,1,1 };
+int dy[] = { -1,0,1,-1,1,-1,0,1 };
+// 判断是否在棋盘内
+inline bool inMap(int x, int y)
+{
+	if (x < 0 || x >= GRIDSIZE || y < 0 || y >= GRIDSIZE)
+		return false;
+	return true;
+}
+class Row {
+public:
+	int x; int y;
+	int valid; int flag;
+	int num() {
+		int cnt = 0;
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x][y + i] != 0) cnt++;
+		}
+		return cnt;
+	}
+	int get_color() {//这条路的颜色
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x][y + i] != 0) return gridInfo[x][y + i];
+		}
+		return 0;
+	};
+	bool is_valid() {//是否有效（是否可以连成一条路）
+		int cl = get_color();
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x][y + i] == cl || gridInfo[x][y + i] == 0) continue;
+			else {
+				 return false;
+			}
+		}
+		return true;
+	}
+};
+class Column {
+public:
+	int x; int y;
+	int valid; int flag;
+	int num() {
+		int cnt = 0;
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x + i][y] != 0) cnt++;
+		}
+		return cnt;
+	}
+	int get_color() {//这条路的颜色
+		for (int i = 0; i < 6; i++)
+			if (gridInfo[x + i][y] != 0) return gridInfo[x + i][y];
+		return 0;
+	};
+	bool is_valid() {//是否有效（是否可以连成一条路）
+		int cl = get_color();
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x + i][y] == cl || gridInfo[x + i][y] == 0) continue;
+			else {
+				 return false;
+			}
+		}
+		return true;
+	}
+};
+class Diagonal {
+public:
+	int x; int y;
+	int valid; int flag;
+	int num() {
+		int cnt = 0;
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x - i][y + i] != 0) cnt++;
+		}
+		return cnt;
+	}
+	int get_color() {//这条路的颜色
+		for (int i = 0; i < 6; i++)
+			if (gridInfo[x - i][y + i] != 0) return gridInfo[x - i][y + i];
+		return 0;
+	};
+	bool is_valid() {//是否有效（是否可以连成一条路）
+		int cl = get_color();
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x - i][y + i] == cl || gridInfo[x - i][y + i] == 0) continue;
+			else {
+				return false;
+			}
+		}
+		return true;
+	}
+};
+class Back_diagonal {
+public:
+	int x; int y;
+	int valid; int flag;
+	int num() {
+		int cnt = 0;
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x + i][y + i] != 0) cnt++;
+		}
+		return cnt;
+	}
+	int get_color() {//这条路的颜色
+		for (int i = 0; i < 6; i++)
+			if (gridInfo[x + i][y + i] != 0) return gridInfo[x + i][y + i];
+		return 0;
+	};
+	bool is_valid() {//是否有效（是否可以连成一条路）
+		int cl = get_color();
+		for (int i = 0; i < 6; i++) {
+			if (gridInfo[x + i][y + i] == cl || gridInfo[x + i][y + i] == 0) continue;
+			else {
+				return false;
+			};
+		}
+		return true;
+	}
+};
+Row row[151]; Column col[151]; Diagonal dg[101]; Back_diagonal bdg[101];
+int Score_myroad[7] = { 0,1,20,40,200,200,1000000 };
+int Score_yourroad[7] = { 0,1,25,50,6000,6000,1000000 };
+int Number_of_wroad[7];
+int Number_of_broad[7];
+void init() {
+	int x = 0, y = 0;
+	for (int i = 0; i < 150; ++i) {
+		row[i].x = x, row[i].y = y;
+		if (y == 9) x++, y = 0;
+		else y++;
+	}
+	x = y = 0;
+	for (int i = 0; i < 150; ++i) {
+		col[i].x = x, col[i].y = y;
+		if (y == 14) y = 0, x++;
+		else y++;
+	}
+	x = 5, y = 0;
+	for (int i = 0; i < 100; ++i) {
+		dg[i].x = x, dg[i].y = y;
+		if (y == 9) x++, y = 0;
+		else y++;
+	}
+	x = 0, y = 0;
+	for (int i = 0; i < 100; ++i) {
+		bdg[i].x = x, bdg[i].y = y;
+		if (y == 9) x++, y = 0;
+		else y++;
+	}
+}
+void Evaluate() {
+	//遍历所有行和列中的路
+	memset(Number_of_wroad, 0, sizeof Number_of_wroad);
+	memset(Number_of_broad, 0, sizeof Number_of_broad);
+	for (int i = 0; i < 150; i++) {
+		
+		if (row[i].is_valid() && 1) {
+			if (row[i].get_color() == -1) {
+				int Num = row[i].num();
+				Number_of_wroad[Num]++;
+				row[i].flag = 1;
+			}
+			else if (row[i].get_color() == 1) {
+				int Num = row[i].num();
+				Number_of_broad[Num]++;
+				row[i].flag = 1;
+			}
+		}
+
+		if (col[i].is_valid() && 1) {
+			if (col[i].get_color() == -1) {
+				int Num = col[i].num();
+				Number_of_wroad[Num]++;
+				col[i].flag = 1;
+			}
+			else if (col[i].get_color() == 1) {
+				int Num = col[i].num();
+				Number_of_broad[Num]++;
+				col[i].flag = 1;
+			}
+		}
+	}
+	for (int i = 0; i < 100; ++i) {
+		if (dg[i].is_valid() && 1) {
+			if (dg[i].get_color() == -1) {
+				int Num = dg[i].num();
+				Number_of_wroad[Num]++;
+				dg[i].flag = 1;
+			}
+			else if (dg[i].get_color() == 1) {
+				int Num = dg[i].num();
+				Number_of_broad[Num]++;
+				dg[i].flag = 1;
+			}
+		}
+		if (bdg[i].is_valid() && 1) {
+			if (bdg[i].get_color() == -1) {
+				int Num = bdg[i].num();
+				Number_of_wroad[Num]++;
+				bdg[i].flag = 1;
+			}
+			else if (bdg[i].get_color() == 1) {
+				int Num = bdg[i].num();
+				Number_of_broad[Num]++;
+				bdg[i].flag = 1;
+			}
+		}
+//		if(bdg[i].x==4 && bdg[i].y==4){
+//			cout<<endl;
+//			for (int i = 0; i <= 14; i++) {
+//						for (int j = 0; j <= 14; j++) {
+//							int pl=gridInfo[i][j];
+//							if(pl==-1) pl=2;
+//							cout <<pl<< " ";
+//						}cout << endl;
+//					}
+//			cout<<endl;
+//			cout<<bdg[i].get_color()<<" "<<bdg[i].num()<<endl;
+//			for (int i = 0; i <= 6; ++i) {
+//						cout << i << " " << Number_of_wroad[i] << endl;
+//						cout << i << " " << Number_of_broad[i] << endl;
+//		
+//					}
+//			cout<<bdg[i].is_valid()<<endl;
+//			system("pause");
+//		} 
+	}
+}
+int ccc;
+int get_value() {
+	Evaluate();
+	int ans = 0;
+	if(ccc)
+	for (int i = 0; i <= 6; ++i) {
+		ans += Number_of_wroad[i] * Score_myroad[i] - Number_of_broad[i] * Score_yourroad[i];
+	}
+	else
+	for (int i = 0; i <= 6; ++i) {
+		ans += Number_of_wroad[i] * Score_yourroad[i] - Number_of_broad[i] * Score_myroad[i];
+	}
+	return ans;
+}
+void square(int gridInfo[20][15], int& x0, int& y0, int& x1, int& y1) {
+	x0 = 20;
+	y0 = 20;
+	x1 = -1;
+	y1 = -1;
+	for (int i = 0; i <= 14; i++) {
+		for (int j = 0; j <= 14; j++) {
+			if (gridInfo[i][j]) {
+				if (i <= x0) {
+					x0 = i;
+				}
+				if (i >= x1) {
+					x1 = i;
+				}
+				if (j <= y0) {
+					y0 = j;
+				}
+				if (j >= y1) {
+					y1 = j;
+				}
+			}
+			else continue;
+		}
+	}
+	if (x1 == -1) {
+		x0 = 7;
+		x1 = 10;
+		y0 = 7;
+		y1 = 10;
+		return;
+	}
+	if (y0 - 2 >= 0)y0 = y0 - 2;
+	else y0 = 0;
+	if (x0 - 2 >= 0)x0 = x0 - 2;
+	else x0 = 0;
+	if (y1 + 2 <= 14) y1 = y1 + 2;
+	else y1 = 14;
+	if (x1 + 2 <= 14) x1 = x1 + 2;
+	else x1 = 14;
+}
+int max(int a, int b) {
+	return a > b ? a : b;
+}
+int min(int a, int b) {
+	return a < b ? a : b;
+}
+time_t tim = time(NULL);
+clock_t clo = clock();
+int Count = 0;
+int X0, Y0, X1, Y1;
+int xx0, yy0, xx1, yy1;
+int lo = 0;
+void all(int x0, int y0, int x1, int y1, battletree* root, int depth) {
+	if (depth == 2) {
+		//	clock_t clo2=clock();
+		//	if(double(clo2-clo)/CLOCKS_PER_SEC>0.9){
+		//		lo=1;
+		//		return;
+		//	}
+		int  tep_w[7]; int tep_b[7];
+		for (int i = 0; i < 7; ++i) {
+			tep_w[i] = Number_of_wroad[i];
+			tep_b[i] = Number_of_broad[i];
+		}
+		if(root->color==grid_black) 
+		root->alpha = get_value();
+		else{
+			root->beta=get_value();
+		}
+//				cout << root->beta << "**" << endl;
+//				if (gridInfo[5][7] && gridInfo[8][7]) {
+//					cout<<ccc<<endl;
+//					cout << get_value() << endl;
+//					for (int i = 0; i <= 14; i++) {
+//						for (int j = 0; j <= 14; j++) {
+//							int pl=gridInfo[i][j];
+//							if(pl==-1) pl=2;
+//							cout <<pl<< " ";
+//						}cout << endl;
+//					}
+//					for (int i = 0; i <= 6; ++i) {
+//						cout << i << " " << Number_of_wroad[i]<<" "<<Score_yourroad[i] << endl;
+//						cout << i << " " << Number_of_broad[i]<<" "<<Score_myroad[i] << endl;
+//		
+//					}
+//					system("pause");
+//				}
+		//		if (gridInfo[2][5] && gridInfo[2][6]) {
+		//			cout << get_value() << endl;
+		//			for (int i = 0; i <= 14; i++) {
+		//				for (int j = 0; j <= 14; j++) {
+		//					cout << gridInfo[i][j] << " ";
+		//				}cout << endl;
+		//			}
+		//			for (int i = 0; i <= 5; ++i) {
+		//				cout << i << " " << Number_of_wroad[i] << endl;
+		//				cout << i << " " << Number_of_broad[i] << endl;
+		//
+		//			}
+		//			system("pause");
+		//		}
+		for (int i = 0; i < 7; ++i) {
+			Number_of_wroad[i] = tep_w[i];
+			Number_of_broad[i] = tep_b[i];
+		}
+		return;
+	}
+	int colo = root->color;
+	for (int i = x0; i <= x1; i++) {
+		for (int j = y0; j <= y1; j++) {
+			if (!gridInfo[i][j]) gridInfo[i][j] = colo;
+			else continue;
+			for (int a = i; a <= x1; a++) {
+				int ppp;
+				if (a == i)ppp = j;
+				else ppp = y0;
+				for (int b = ppp; b <= y1; b++) {
+					//if (a == i && b == j) continue;
+					if (!gridInfo[a][b]) gridInfo[a][b] = colo;
+					else continue;
+					//					if(depth==1){
+					//						xx0=i;
+					//						yy0
+					//						xx1=a;
+					//						yy1=b;
+					//					}
+					Count++;//printf("%d %d %d %d\n",a,b,depth,root->alpha);
+					if (lo) {
+						if (depth == 1) {
+							X0 = i;
+							Y0 = j;
+							X1 = a;
+							Y1 = b;
+						}
+						return;
+					}
+					if (root->color == grid_white) {
+						//printf("&");
+//						cout << i << " " << j << " " << a << " " << b << " ";
+						root->son = new battletree;
+						root->son->color = grid_black;
+						root->son->beta = root->beta;
+						all(x0, y0, x1, y1, root->son, depth + 1);
+						if (depth==1&&root->beta < root->son->alpha) {
+							X0 = i;
+							Y0 = j;
+							X1 = a;
+							Y1 = b;
+						}
+						root->beta = max(root->beta, root->son->alpha);
+					}
+					else {
+						//printf("&&");
+						root->son = new battletree;
+						root->son->color = grid_white;
+						root->son->alpha = root->alpha;
+						all(x0, y0, x1, y1, root->son, depth + 1);
+						if(depth==1&&root->alpha>root->son->beta){
+							X0 = i;
+							Y0 = j;
+							X1 = a;
+							Y1 = b;
+						}
+						root->alpha = min(root->alpha, root->son->beta);
+					}
+					if (root->alpha <= root->beta) {
+						gridInfo[a][b] = 0;
+						gridInfo[i][j] = 0;
+						//printf("$$%d %d\n",root->alpha,root->beta);
+						//system("pause");
+						return;
+					}
+					gridInfo[a][b] = 0;
+				}
+			}
+			gridInfo[i][j] = 0;
+		}
+	}
+	return;
+}
+// 在坐标处落子，检查是否合法或模拟落子
+bool ProcStep(int x0, int y0, int x1, int y1, int grid_color, bool check_only)
+{
+	if (x1 == -1 || y1 == -1) {
+		if (!inMap(x0, y0) || gridInfo[x0][y0] != grid_blank)
+			return false;
+		if (!check_only) {
+			gridInfo[x0][y0] = grid_color;
+		}
+		return true;
+	}
+	else {
+		if ((!inMap(x0, y0)) || (!inMap(x1, y1)))
+			return false;
+		if (gridInfo[x0][y0] != grid_blank || gridInfo[x1][y1] != grid_blank)
+			return false;
+		if (!check_only) {
+			gridInfo[x0][y0] = grid_color;
+			gridInfo[x1][y1] = grid_color;
+		}
+		return true;
+	}
+}
+
+int main()
+{
+
+	srand(tim);
+	int x0, y0, x1, y1;
+
+	// 分析自己收到的输入和自己过往的输出，并恢复棋盘状态
+	int turnID;
+	cin >> turnID;
+	currBotColor = grid_white; // 先假设自己是白方
+	for (int i = 0; i < turnID; i++)
+	{
+		// 根据这些输入输出逐渐恢复状态到当前回合
+		cin >> x0 >> y0 >> x1 >> y1;
+		if (x0 == -1)
+			currBotColor = grid_black; // 第一回合收到坐标是-1, -1，说明我是黑方
+		if (x0 >= 0)
+			ProcStep(x0, y0, x1, y1, -currBotColor, false); // 模拟对方落子
+		if (i < turnID - 1) {
+			cin >> x0 >> y0 >> x1 >> y1;
+			if (x0 >= 0)
+				ProcStep(x0, y0, x1, y1, currBotColor, false); // 模拟己方落子
+		}
+	}
+
+
+
+	/************************************************************************************/
+	/***在下面填充你的代码，决策结果（本方将落子的位置）存入startX、startY、resultX、resultY中*****/
+	//下面仅为随机策略的示例代码，且效率低，可删除
+	int startX, startY, resultX, resultY;
+	int beginPos[GRIDSIZE * GRIDSIZE][2], possiblePos[GRIDSIZE * GRIDSIZE][2];
+	bool selfFirstBlack = (turnID == 1 && currBotColor == grid_black);//本方是黑方先手
+	init();
+	//	for (int i = 0; i <= 14; i++) {
+	//		for (int j = 0; j <= 14; j++) {
+	//			cout << gridInfo[i][j] << " ";
+	//		}cout << endl;
+	//	}
+	//get_value();
+	//	cout << get_value() << endl;
+	//	for (int i = 0; i <= 5; ++i) {
+	//		cout << i << " " << Number_of_wroad[i] << endl;
+	//		cout << i << " " << Number_of_broad[i] << endl;
+	//	}
+
+	int posCount = 0, choice0, choice1;
+	for (int i = 0; i < GRIDSIZE; ++i) {
+		for (int j = 0; j < GRIDSIZE; ++j) {
+			if (gridInfo[i][j] == grid_blank) {
+				beginPos[posCount][0] = i;
+				beginPos[posCount][1] = j;
+				possiblePos[posCount][0] = i;
+				possiblePos[posCount++][1] = j;
+			}
+		}
+	}
+	if(currBotColor==grid_black){
+	ccc=0;
+	}
+	else{
+		ccc=1;
+	}
+	// 做出决策
+	if (posCount > 0) {
+		battletree* root = new battletree(currBotColor);
+		int lx, doy, rx, upy;
+		square(gridInfo, lx, doy, rx, upy);
+		//cout << lx << ' ' << doy << ' ' << rx << ' ' << upy << endl;
+		all(lx, doy, rx, upy, root, 1);
+		startX = X0;
+		startY = Y0;
+		resultX = X1;
+		resultY = Y1;
+	}
+	else {
+		startX = -1;
+		startY = -1;
+		resultX = -1;
+		resultY = -1;
+	}
+	/****在上方填充你的代码，决策结果（本方将落子的位置）存入startX、startY、resultX、resultY中****/
+	/************************************************************************************/
+
+	// 决策结束，向平台输出决策结果
+	//cout<<count<<endl;
+//	for (int i = 0; i <= 14; i++) {
+//		for (int j = 0; j <= 14; j++) {
+//			cout << gridInfo[i][j] << " ";
+//		}cout << endl;
+//	}
+
+if(selfFirstBlack){
+	resultX=-1;
+	resultY=-1;
+}
+	//cout << get_value() << endl;
+	//	cout << endl;
+	cout << startX << ' ' << startY << ' ' << resultX << ' ' << resultY << endl;
+	return 0;
+}

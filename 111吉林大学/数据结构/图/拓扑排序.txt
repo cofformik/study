@@ -1,0 +1,57 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<iostream>
+#include<vector>
+using namespace std;
+const int maxn = 1000;
+
+struct Edge {
+	int preadj;
+	int veradj;
+	Edge* link;
+	Edge(int p,int v):preadj(p),veradj(v),link(nullptr){}
+};
+struct Vertex{
+	int vername;
+	vector<Edge*> adjacent;
+};
+int n, e;
+vector<Vertex> vt(maxn);
+vector<int> nums(maxn, 0),pr,visited(maxn,0);
+int main() {
+	scanf("%d%d", &n, &e);
+	while (e--) {
+		int a, b;
+		scanf("%d%d", &a, &b);
+		Edge* t = new Edge(a,b);
+		vt[a].adjacent.push_back(t);
+		nums[b]++;
+	}
+    int i=0,j=0;
+		while(i<n) {
+            if(visited[i]==1) {
+                i++;continue;}
+			if (nums[i] == 0) {
+				for (Edge* t : vt[i].adjacent) {
+					nums[t->veradj]--;
+				}
+				vt[i].adjacent.clear();
+				pr.push_back(i);
+                visited[i]=1;
+                i=0;
+			}
+            else i++;
+		}
+		for (int i = 0; i < n; ++i) {
+			if (vt[i].adjacent.empty() != 1) {
+				printf("unworkable project");
+				return 0;
+			}
+		}
+	
+
+	for (int i : pr) {
+		printf("%d ", i);
+	}
+	
+	return 0;
+}

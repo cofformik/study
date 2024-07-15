@@ -1,0 +1,79 @@
+p8255a equ 0640h
+p8255b equ 0642h
+p8255c equ 0646h
+p8255mode equ 0646h				;8255片选cs接ioy1
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+		mov bl,00h				;初始时，数据灯全部熄灭
+		mov al,90h
+		mov dx,0646h
+		out dx,al				;送方式控制字
+		mov dx,0642h
+		mov al,bl
+		out dx,al				;送b口
+		
+		mov ax,0000h
+		mov ds,ax
+		mov ax,offset mir6		;8254单元out1连接mir6
+		mov si,0038h
+		mov [si],ax
+		mov ax,cs
+		mov si,003ah
+		mov [si],ax
+		
+		cli
+		mov al,00010001b		;上升边沿触发
+		out 20h,al
+		mov al,08h
+		out 21h,al
+		mov al,04h
+		out 21h,al
+		mov al,07h
+		out 21h,al
+		mov al,10101111b		;开放了ir4 ir6 ir4必须开放 否则会造成不可预料的情况
+		out 21h,al
+		sti
+		
+		mov dx, con8254
+		mov al, 76h             ;8254计数器0工作在方式3，产生方波。 
+		out dx, al 
+		mov dx, b8254 
+		mov ax,18432 
+		out dx, al
+		mov al, ah
+		out dx, al
+        ;写入计数初值18432
+
+aa1: 
+		jmp aa1 
+;计数器1的计数初值为18432，最终计数器1产生1s的方波。
+mir6:
+		cmp bl,0ffh
+		jz  m;八个灯都亮了，现在全部熄灭
+		shl bl,1				;数据灯逐渐点亮的控制，shl逻辑左移，低位补零，高位移动到CF
+		add bl,01h				;同上
+		mov dx,0642h
+		mov al,bl
+		out dx,al
+                push ax;
+                mov al,20h;
+                out 20h,al;
+                pop ax;新加的，保护现场。。。。。。。。。。。
+		iret
+m:		
+                mov bl,00h				;回到初始状态
+                push ax;
+                mov al,20h;
+                out 20h,al;新加的，保护现场。。。。。。。。。。。
+                pop ax;
+		iret
+code 	ends 
+		end start

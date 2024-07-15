@@ -1,0 +1,73 @@
+code 	segment
+		assume  cs:code
+start:
+		;产生锯齿波
+		MOV AL，00H
+		OUT 0600H，AL；接IOY1口
+A1： 		INC AL
+		OUT 0600H，AL
+		MOV CX，0FFH ；延时
+		A2： LOOP A2
+JMP A1
+code 	ends
+		end start
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+；**************************************************************************
+
+
+code 	segment
+		assume  cs:code
+start:
+		;产生锯齿波
+		mov cx, 07h       	;产生锯齿波的周期数为7次 
+aa1:
+		mov dx, 0600h     	;dac0832接ioy0,0600h为控制端口地址
+		mov al, 00h       	;al为数字量
+aa2: 
+		out dx, al        	;转换为模拟量
+		call delay     	    ;延时
+		cmp al ,0ffh
+		je aa3
+		inc al           	;al步加1，直到等于0ffh
+		jmp aa2
+aa3:
+		loop aa1
+ 
+delay:                		
+		push cx
+		mov cx, 01ffh
+d1: 
+		loop d1
+		pop cx
+		ret;子程序返回
+ 
+code 	ends
+		end start

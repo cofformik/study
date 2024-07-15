@@ -1,0 +1,410 @@
+
+MY8255_A EQU 0600H 
+MY8255_B EQU 0602H 
+MY8255_C EQU 0604H 
+MY8255_MODE EQU 0606H 
+
+A8254 EQU 0640H 
+B8254 EQU 0642H
+C8254 EQU 0644H
+CON8254 EQU 0646H
+ 
+SSTACK SEGMENT STACK 
+    DW 32 DUP(?)
+SSTACK ENDS
+ 
+PUBLIC SEC							;秒
+PUBLIC MIN							;分
+PUBLIC STT							;用于暂停/继续
+PUBLIC TEMPP						;
+ 
+DATA 	SEGMENT 
+		DTABLE 	DB 3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,6FH,00H		;数字0-9 熄灭
+		MSEC 	DW 0				;用于中断计数
+		SEC 	DB 05H				;
+		MIN 	DB 00H				;
+		STT 	DB 01H				;STT初始状态为01H即继续
+		TEMPP 	DB 00H				;
+DATA 	ENDS
+ 
+CODE 	SEGMENT 
+		ASSUME CS:CODE,DS:DATA,SS:SSTACK
+START: 
+		PUSH DS
+		MOV AX, 0000H
+		MOV DS, AX
+		MOV AX, OFFSET MIR7         ;取中断入口地址
+		MOV SI, 003CH               ;中断矢量地址
+		MOV [SI], AX                ;填IRQ7的偏移矢量确定地址
+		MOV AX, CS                  ;段地址
+		MOV SI, 003EH
+		MOV [SI], AX                ;填IRQ7的段地址矢量
+		CLI							;初始化前 关中断					
+		POP DS            
+		;初始化主片8255
+		MOV DX,MY8255_MODE
+		MOV AL,81H					;81H=10000001B A口方式0 输出 B口方式0 输出 C口低四位 输入
+		OUT DX,AL    
+		;初始化主片8254
+		MOV DX,CON8254
+		MOV AL,36H 					;36H=00110110B 计数器0 先读/写低8位 再读/写高8位 方式3 二进制数
+		OUT DX,AL
+		MOV DX,A8254 
+		MOV AL,0E8H
+		OUT DX,AL
+		MOV AL,03H
+		OUT DX,AL     
+		;初始化主片8259
+		MOV AL, 11H
+		OUT 20H, AL                 ;ICW1
+		MOV AL, 08H
+		OUT 21H, AL                 ;ICW2
+		MOV AL, 04H
+		OUT 21H, AL                 ;ICW3
+		MOV AL, 01H
+		OUT 21H, AL                 ;ICW4
+		MOV AL, 6FH        			;6FH=01101111B 开放IR4(串口0) IR7(MIR7)
+		OUT 21H, AL                 ;OCW1
+		STI							;开中断
+ 
+		MOV AX,DATA 
+		MOV DS,AX 					;装入数据段
+		MOV SI,3000H				;建立缓冲区，存放要显示的键值
+		MOV AL,0AH					;用来清显示缓冲
+		MOV [SI],AL					;管4
+		MOV [SI+1],AL 				;管3
+		MOV [SI+2],AL				;管2
+		MOV [SI+3],AL				;管1
+		MOV DI,3001H
+ 
+BEGIN:
+		CALL DIS					;调用显示子程序
+		CALL CLEAR					;清屏
+		CALL CCSCAN					;扫描按键
+		JNZ INK1					;有键按下
+		CMP STT,01H
+		JNE BEGINCON				;STT=00H 暂停状态
+		STI							;STT=01H 继续状态 开中断
+BEGINCON:    
+		CMP STT,00H			
+		JNE BEGIN					;STT=01H 仍处于继续状态 跳到BEGIN
+		CLI							;STT=00H 进入暂停状态 关中断
+		JMP BEGIN 					
+ 
+INK1:
+		CALL CCSCAN					;扫描按键
+		JNZ INK2					;确定有键按下
+		JMP BEGIN
+INK2:
+		MOV CH,0FEH					;11111110B 刚开始选取第一列
+		MOV CL,00H					;设置当前检测的是第几列
+COLUM:  
+		MOV AL,CH					;选取一列，将X1~X4中一个置0
+		MOV DX,MY8255_A
+		OUT DX,AL
+		MOV DX,MY8255_C				;读Y1~Y4，用于判断是哪一行按键闭合
+		IN AL,DX
+L1: 
+		TEST AL,01H                 ;是否为第1行 
+		JNZ L2						;不是则继续判断
+		MOV AL,00H                	;设置第1行第x列对应的键值   
+		JMP KCODE
+L2: 
+		TEST AL,02H                 ;是否为第2行 
+		JNZ L3						;不是则继续判断
+		MOV AL,04H                  ;设置第2行第x列对应的键值 
+		JMP KCODE
+L3: 
+		TEST AL,04H     			;是否是第3行           
+		JNZ L4						;不是则继续判断
+		MOV AL,08H            	   	;设置第3行第x列对应的键值  		 
+		JMP KCODE
+L4: 
+		TEST AL,08H                 ;是否是第4行
+		JNZ NEXT					;不是则继续判断
+		MOV AL,0CH               	;设置第4行第x列对应的键值
+KCODE: 
+		ADD AL,CL					;将第1列的值加上当前列数，确定按键值
+		CALL PUTBUF					;保存按键值
+		PUSH AX
+KON: 
+		CALL DIS					;显示刷新
+		CALL CLEAR					;清屏
+		CALL CCSCAN					;扫描按键，判断按键是否弹起
+		JNZ KON						;未弹起则继续循环等待弹起
+		POP AX
+NEXT:  
+		INC CL						;当前检测的列数递增
+		MOV AL,CH
+		TEST AL,08H					;检测是否扫描到第4列
+		JZ KERR						;是则跳回到开始处
+		ROL AL,1					;没检测到第4列则准备检测下一列
+		MOV CH,AL
+		JMP COLUM
+KERR:
+		JMP BEGIN
+ 
+;
+;
+; 
+ 
+PUTBUF:
+STTT:
+		CMP STT,01H
+		JNE CC						;STT=00H 暂停状态 跳到CC
+		CMP AL,0AH					;继续状态下 
+		JB GOBACK					;按键值比A小 即按下的是0-9
+CC:
+		CMP AL,0CH
+		JNE BB						;按下的不是C键 跳到BB
+		MOV AH,4CH					;按下的是C键 程序退出
+		INT 21H
+BB:
+		CMP AL,0BH					
+		JNE AA						;按下的不是B键 跳到AA
+		CMP STT,00H					;按下的是B键
+		JNE SET0					;STT=01H 继续状态 将继续状态转换为暂停状态
+		MOV STT,01H					;STT=00H 暂停状态 将暂停状态转化为继续状态
+		JMP GOBACK
+SET0:
+		MOV STT,00H 				;设置为暂停状态   
+		JMP GOBACK 
+AA:
+		CMP AL,0AH					
+		JNE PUTBUFCON				;按下的不是A键 存入键值
+TESTT:								;按下的是A键
+		CMP STT,00H						
+		JE TESTTCON					;STT=00H 暂停状态 跳到TESTTCON
+		CALL FINISH					;STT=01H 继续状态 继续状态下按下A键 调用FINISH子程序
+		JMP GOBACK
+TESTTCON:   						;暂停状态下按下A键 
+		MOV STT,01H   				;设置为继续状态 
+		PUSH SI
+		PUSH AX
+		MOV SI,3000H
+		MOV AL,[SI+3]
+		ROL AL,4
+		MOV AH,[SI+2]
+		ADD AL,AH
+		MOV MIN,AL					;存入分 计数初值显示在数码管3和4上 范围为1~99分钟
+		MOV AL,00H
+		MOV SEC,AL					;存入秒
+		POP AX
+		POP SI
+		JMP GOBACK 
+PUTBUFCON:    
+		MOV SI,DI                   ;存键盘值到相应位的缓冲中
+		MOV [SI+2],AL
+		DEC DI
+		CMP DI,2FFFH
+		JNZ GOBACK
+		MOV DI,3001H				;回到初始位置
+GOBACK: 
+		RET
+ 
+ 
+MIR7:
+		STI 
+		PUSH AX
+		PUSH SI
+		MOV AX,MSEC 
+		INC AX 
+		MOV MSEC,AX
+		CMP AX,1000
+		JB MRET						;MSEC<1000 
+ 
+		MOV AX,0
+		MOV MSEC,AX					;中断计数复原
+ 
+		MOV AL,SEC
+		CMP AL,00H					;判断秒是否为00
+		JZ DDD						;秒为00跳到DDD
+    
+		SUB AL,1
+		DAS							;压缩BCD码减法调整指令
+		MOV SEC,AL
+
+		JMP MTODIS					;秒减1前不是00 跳到MTODIS
+ 
+ 
+		;MOV AL,MIN
+		;CMP AL,00					;判断分是否为00
+		;JNE CONTINUE
+		;CALL FINISH				;分和秒均为00 调用FINISH子程序
+		;JMP MRET
+DDD:	MOV AL,MIN
+		CMP AL,00					;判断分是否为00
+		JNE CONTINUE
+		CALL FINISH					;分和秒均为00 调用FINISH子程序
+		JMP MRET 
+CONTINUE:
+		SUB AL,1
+		DAS							;压缩BCD码减法调整指令
+		MOV MIN,AL
+
+		MOV AL,00H
+		MOV SEC,AL
+		MOV AL,00H
+		MOV SEC,AL
+		ADD AL,59H
+		DAA							;压缩BCD码加法调整指令
+		MOV SEC,AL
+MTODIS: 							;向显示缓冲区中写入新值
+		MOV AL,SEC
+		MOV AH,AL
+		MOV SI,3000H
+		AND AL,0FH
+		MOV [SI],AL
+		ROR AH,1
+		ROR AH,1
+		ROR AH,1
+		ROR AH,1
+		AND AH,0FH
+		MOV [SI+1],AH
+		MOV AL,MIN
+		MOV AH,AL
+		AND AL,0FH
+		MOV [SI+2],AL
+		ROR AH,1
+		ROR AH,1
+		ROR AH,1
+		ROR AH,1
+		AND AH,0FH
+		MOV [SI+3],AH
+MRET:
+		MOV AL, 20H
+		OUT 20H, AL                	;中断结束命令
+		POP SI
+		POP AX
+		IRET
+ 
+ 
+CLEAR: 								;清屏子程序
+		MOV DX,MY8255_B				;段位置0即可清除数码管显示
+		MOV AL,00H 
+		OUT DX,AL 
+		RET
+ 
+DIS:								;显示键值子程序
+		PUSH AX 					;以缓冲区存放的键值为键值表偏移找到键值并显示
+		MOV SI,3000H
+		MOV DL,0F7H					;F7H=11110111B
+		MOV AL,DL
+AGAIN: 
+		PUSH DX 
+		MOV DX,MY8255_A
+		OUT DX,AL					;设置X1~X6，选通一个数码管
+		
+		MOV AL,[SI]					;取出缓冲区中存放键值
+		MOV BX,OFFSET DTABLE
+		AND AX,00FFH 
+		ADD BX,AX
+		MOV AL,[BX]					;将键值作为偏移和键值基地址相加得到相应的共阴极数码管编码
+		MOV DX,MY8255_B 
+		OUT DX,AL 					;写入数码管A~Dp
+		
+		CALL DALLY
+		INC SI						;取下一个键值
+		POP DX
+		MOV AL,DL
+		TEST AL,01H					;判断是否显示完
+		JZ OUT1						;显示完，返回
+		ROR AL,1 
+		MOV DL,AL
+		JMP AGAIN					;未显示完，跳回继续
+OUT1: 
+		POP AX
+		RET
+ 
+DALLY: 
+		PUSH CX
+		MOV CX,000FH
+T1:
+		MOV AX,002FH
+T2:
+		DEC AX
+		JNZ T2
+		LOOP T1
+		POP CX
+		RET
+ 
+DELAY: 								;延时子程序
+		PUSH CX
+		MOV CX,00FFH
+T3:
+		MOV AX,02FFH
+T4:
+		DEC AX
+		JNZ T4
+		LOOP T3
+		POP CX
+		RET
+ 
+CCSCAN: 							;键盘扫描子程序
+		MOV AL,00H                   
+		MOV DX,MY8255_A
+		OUT DX,AL
+		MOV DX,MY8255_C
+		IN AL,DX
+		NOT AL
+		AND AL,0FH
+		RET
+ 
+FINISH:								;计时结束子程序
+		CLI
+		PUSH AX
+		MOV AL,00H
+		PUSH SI
+		MOV SI,3000H
+		MOV [SI],AL					;清显示缓冲
+		MOV [SI+1],AL 
+		MOV [SI+2],AL
+		MOV [SI+3],AL
+		POP SI
+		MOV SEC,AL
+		MOV MIN,AL
+ 
+		PUSH CX
+ 
+		CALL CLEAR
+		CALL DELAY
+		MOV CX,003FH
+T5:    
+		CALL DIS
+		LOOP T5
+ 
+		CALL CLEAR
+		CALL DELAY
+ 
+		MOV CX,003FH
+T6:    
+		CALL DIS
+		LOOP T6
+ 
+		CALL CLEAR
+		CALL DELAY
+ 
+		MOV CX,003FH
+T7:    
+		CALL DIS
+		LOOP T7
+ 
+		MOV AL,0AH
+		PUSH SI
+		MOV SI,3000H
+		MOV [SI],AL					;清显示缓冲
+		MOV [SI+1],AL 
+		MOV [SI+2],AL
+		MOV [SI+3],AL
+		POP SI 
+  		CALL CLEAR
+		CALL DELAY
+		CALL DIS
+  
+		POP CX
+		POP AX
+		MOV STT,00H					;设置为暂停状态
+		RET
+ 
+CODE 	ENDS
+		END START

@@ -1,0 +1,16 @@
+void merge_sort(int low,int high){
+	if(low>=high) return;
+	int mid=(low+high)>>1;
+	merge_sort(low,mid);
+	merge_sort(mid+1,high);
+	int k=0,m=low,p=mid+1;
+	while(m<=mid && p<=high){
+		if(a[m]<=a[p]) tep[k++]=a[m++];
+		else tep[k++]=a[p++];
+	}
+	while(m<=mid) tep[k++]=a[m++];
+	while(p<=high) tep[k++]=a[p++];
+	for(int i=low,j=0;i<=high;++i,++j){
+		a[i]=tep[j];
+	}
+}

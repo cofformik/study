@@ -1,0 +1,85 @@
+#include<iostream>
+#include<vector>
+#include<string>
+using namespace std;
+struct TreeNode {
+	char val;
+	TreeNode* left;
+	TreeNode* right;
+	TreeNode(char x = 0) :val(x), left(nullptr), right(nullptr) {}
+};
+int find_val(char* Itree, char val, int n) {
+	for (int i = 0; i < n; ++i) {
+		if (Itree[i] == val)
+			return i;
+	}
+	return -1;
+}
+TreeNode* rebuildTree(char* Itree, char* Ltree, int n) {
+	if (n <= 0) return nullptr;
+	char rdata = Ltree[n - 1];//根节点
+	TreeNode* root = new TreeNode(rdata);
+	int k = find_val(Itree, rdata, n);
+	root->left = rebuildTree(Itree, Ltree, k);
+	root->right = rebuildTree(&Itree[k + 1], &Ltree[k], n - k - 1);
+	return root;
+}
+
+bool isLegal(char* Itree, char* Ltree, int n) {
+	if (n <= 0) return true;
+	char rdata = Ltree[n - 1];//根节点数值
+	TreeNode* root = new TreeNode(rdata);
+	int k = find_val(Itree, rdata, n);
+    if (k == -1) return false;
+	vector<int> flag(26, 0);
+	//左子树是否相同
+	for (int i = 0; i < k; ++i) {
+		flag[Itree[i] - 'A'] = 1;
+	}
+	for (int j = 0; j < k; ++j) {
+		if (flag[Ltree[j] - 'A'] == 1)
+			continue;
+		else return false;
+	}
+	//右子树是否相同
+	for (int i = k + 1; i < n; ++i) {//标记
+		flag[Itree[i] - 'A'] = 1;
+	}
+	for (int j = k; j < n - 1; ++j) {
+		if (flag[Ltree[j] - 'A'] == 1)
+			continue;
+		else
+			return false;
+	}
+	if ((isLegal(Itree, Ltree, k)==true) && (isLegal(&Itree[k + 1], &Ltree[k], n - k - 1))==true)
+		return true;
+	else return false;
+}
+int depth(TreeNode* t) {
+	if (!t) return -1;
+	int d1 = depth(t->left);
+	int d2 = depth(t->right);
+	return (d1 > d2) ? (d1 + 1) : (d2 + 1);
+}
+void preorder(TreeNode* t) {
+	if (!t) return;
+	cout << t->val;
+	preorder(t->left);
+	preorder(t->right);
+}
+int main() {
+	string s1, s2;
+	while (cin >> s1 && cin >> s2) {
+		if (isLegal(&s2.front(), &s1.front(), s1.size())) {
+			TreeNode* root = rebuildTree(&s2.front(), &s1.front(), s1.size());
+			cout << depth(root) << endl;
+			preorder(root);
+			cout << endl;
+		}
+		else {
+			cout << "INVALID" << endl;
+
+		}
+	}
+	return 0;
+}

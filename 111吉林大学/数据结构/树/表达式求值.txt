@@ -1,0 +1,117 @@
+#include <iostream>
+#include <stack>
+#include <string>
+using namespace std;
+
+int priority(char op) {
+    if (op == '+' || op == '-') return 1;
+    if (op == '*' || op == '/') return 2;
+    if (op == '^') return 3;
+    return 0;
+}
+
+int calPow(int m, int n) {
+    if (m == 1 || n == 0) return 1;
+    int ans = calPow(m, n / 2);
+    int ans2 = ans * ans;
+    return (n % 2 == 0) ? ans2 : ans2 * m;
+}
+
+int applyOperator(int a, char op, int b) {
+    if (b == 0) {
+        cout << "INVALID" << endl;
+        return -1;  // Return an error value
+    }
+    
+    switch (op) {
+    case '+': return a + b;
+    case '-': return a - b;
+    case '*': return a * b;
+    case '/': return a / b;
+    case '^': return calPow(a, b);
+    }
+    return 0;
+}
+
+int calExpression(const string& s) {
+    stack<int> values;
+    stack<char> operators;
+    for (size_t i = 0; i < s.length(); i++) {
+        char c = s[i];
+        if (c == ' ') {
+            continue;
+        }
+        if (c >= '0' && c <= '9') {
+            int n = 0;
+            while (i < s.length() && (s[i] >= '0' && s[i] <= '9')) {
+                n = n * 10 + (s[i] - '0');
+                i++;
+            }
+            i--;
+            values.push(n);
+        }
+        else if (c == '(') {
+            operators.push(c);
+        }
+        else if (c == ')') {
+            while (!operators.empty() && operators.top() != '(') {
+                int b = values.top();
+                values.pop();
+                int a = values.top();
+                values.pop();
+                char op = operators.top();
+                operators.pop();
+                int result = applyOperator(a, op, b);
+                if (result != -1) {
+                    values.push(result);
+                } else {
+                    return -1;  // Report an error if there's an invalid operation
+                }
+            }
+            operators.pop();
+        }
+        else {
+            while (!operators.empty() && priority(operators.top()) >= priority(c)) {
+                int b = values.top();
+                values.pop();
+                int a = values.top();
+                values.pop();
+                char op = operators.top();
+                operators.pop();
+                int result = applyOperator(a, op, b);
+                if (result != -1) {
+                    values.push(result);
+                } else {
+                    return -1;  // Report an error if there's an invalid operation
+                }
+            }
+            operators.push(c);
+        }
+    }
+    while (!operators.empty()) {
+        int b = values.top();
+        values.pop();
+        int a = values.top();
+        values.pop();
+        char op = operators.top();
+        operators.pop();
+        int result = applyOperator(a, op, b);
+        if (result != -1) {
+            values.push(result);
+        } else {
+            return -1;  // Report an error if there's an invalid operation
+        }
+    }
+    return values.top();
+}
+
+int main() {
+    string s;
+    while (getline(cin, s)) {
+        int result = calExpression(s);
+        if (result != -1) {
+            cout << result << endl;
+        }
+    }
+    return 0;
+}

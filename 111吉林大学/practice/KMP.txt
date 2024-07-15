@@ -1,0 +1,39 @@
+#include<iostream>
+#include<string>
+using namespace std;
+const int maxa = 200010;
+void buildnext(int next[], string s) {
+	int n = s.size();
+	next[0] = -1;
+	for (int i = 0; i < n - 1; ++i) {
+		int k = next[i];
+		while (k >= 0 && s[k] != s[i])
+			k = next[k];
+		next[i + 1] = k+1;
+	}
+}
+int KMP(int next[],string s1, string s2) {
+		int i = 0, j = 0;
+		int m = s1.size();
+		int n = s2.size();
+		
+		while(i<m&&j<n){
+			if (j==-1||s1[i] == s2[j]) {
+				++i; 
+				++j;
+			}
+			else j = next[j];
+	}
+		return (j == n) ? (i-n) : -1;
+}
+int main() {
+	string s1, s2;
+	getline(cin, s1);
+	getline(cin, s2);
+	int next[maxa];
+	buildnext(next, s2);
+	int n = s2.size();
+	cout << next[n / 4]<<" " << next[n / 2]<<" " << next[3 * n / 4] <<" "<< endl;
+	cout<<KMP(next,s1, s2);
+	return 0;
+}

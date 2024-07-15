@@ -1,0 +1,75 @@
+﻿code 	segment
+		assume  cs:code
+ 		
+		MOV CX,08H;重复8次
+A0:		MOV AL，00H
+A1： 		OUT 0600H，AL
+ 		CALL DELAY ；调延时子程序
+ 		INC AL
+ 		JNZ A1
+ 		DEC AL ；使AL=FFH
+ 		DEC AL ；使AL=FEH，消除平顶
+A2： 		OUT 0600H，AL
+ 		CALL DELAY ；调延时子程序
+ 		DEC AL
+ 		JNZ A2
+ 		JMP A1 
+		LOOP A0
+ 
+delay:                
+		push cx
+		mov cx, 01ffh
+d1: 
+		loop d1
+		pop cx
+		ret
+
+code 	ends
+		end start
+
+
+
+
+；*********************************************
+
+
+
+
+code 	segment
+		assume  cs:code
+ 
+start:  
+		mov al,00h
+		;产生三角波
+		mov cx, 05h     	;产生三角波的周期数为5次
+aa0:
+aa1:
+		mov dx, 0600h
+		out dx, al
+		call delay      
+		cmp al,0ffh
+		je aa2           
+		inc al            	;将al从00h步加0ffh
+		jmp aa1
+aa2:
+		mov dx, 0600h
+		out dx, al
+		call delay       
+		cmp al, 00h
+		je aa3
+		dec al            	;将al从0ffh步减至00h
+		jmp aa2
+aa3:
+		loop aa0
+ 
+    
+delay:                
+		push cx
+		mov cx, 01ffh
+d1: 
+		loop d1
+		pop cx
+		ret
+ 
+code 	ends
+		end start

@@ -1,0 +1,111 @@
+;8255接口初始化，由cs连接的ioy端口决定。这里用的是ioy0。
+a8255_con equ 0606h
+a8255_a equ 0600h
+a8255_b equ 0602h
+a8255_c equ 0604h
+
+;数码管1	数码管2		数码管3		数码管4		数码管5		数码管6
+;									  灯3		  灯2 		  灯1	
+ 
+public led1			;灯1为数码管6 最右侧数码管
+public led2			;灯2为数码管5 右侧倒数第二个数码管
+public led3			;灯3为数码管4 右侧倒数第三个数码管
+data segment
+led1 db ?
+led2 db ?
+led3 db ?
+table1:
+    db 3fh			;0的编码
+    db 06h			;1
+    db 5bh			;2
+    db 4fh			;3
+    db 66h			;4
+    db 6dh			;5
+    db 7dh			;6
+    db 07h			;7
+    db 7fh			;8
+    db 6fh			;9
+data ends
+ 
+code 	segment
+    	assume cs:code,ds:data
+start:
+    	mov ax,data
+    	mov ds,ax
+    	lea si,table1
+    	
+    	mov dx,a8255_con
+    	mov al,89h				;89h=10001001b a口输出 b口输出 c口输入
+    	out dx,al
+    	
+    	mov dx,a8255_b
+    	mov al,3fh				;3fh=00111111b 0的编码
+    	out dx,al
+    	
+    	mov dx,a8255_a
+    	mov al,00h				;00h=00000000b
+    	out dx,al
+x2:    
+    	mov dx,a8255_c
+    	in al,dx				;读入开关状态
+    	mov ah,00h
+    	mov bl,0ah
+   	 	div bl
+    	mov led1, ah			;个位
+    	mov ah,00h
+    	div bl
+    	mov led2, ah			;十位
+    	mov ah,00h
+    	div bl
+    	mov led3, ah			;百位
+    	
+    	mov cx,03h					
+    	mov bx,0000h
+    	mov al,11011111b		;选中数码管6
+    	mov dx,a8255_a
+    	out dx,al
+    	mov bx,offset led1
+    	mov bx,[bx]
+    	mov bh,00h
+    	mov al,[bx+si]
+    	mov dx,a8255_b
+    	out dx,al				;显示个位
+    	call delay
+    	mov al,00h
+    	out dx,al
+    	
+    	mov al,11101111b		;选中数码管5
+    	mov dx,a8255_a
+    	out dx,al
+    	mov bx,offset led2
+    	mov bx,[bx]
+    	mov bh,00h
+    	mov al,[bx+si]
+    	mov dx,a8255_b
+    	out dx,al				;显示十位
+    	call delay
+   		mov al,00h
+    	out dx,al
+    	
+    	mov al,11110111b		;选中数码管4
+    	mov dx,a8255_a
+    	out dx,al
+    	mov bx,offset led3
+    	mov bx,[bx]
+    	mov bh,00h
+    	mov al,[bx+si]
+    	mov dx,a8255_b
+    	out dx,al				;显示百位
+    	call delay          ;延时实现稳定显示
+    	mov al,00h           ;消影
+    	out dx,al
+    	jmp x2    				;跳到x2 再次读取开关状态
+delay:
+    	push cx
+    	mov cx,0ffh
+x4:
+    	loop x4
+    	pop cx
+    	ret
+code 	ends
+     	end start

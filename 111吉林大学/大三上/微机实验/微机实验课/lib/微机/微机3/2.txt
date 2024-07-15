@@ -1,0 +1,104 @@
+p8255a equ 0640h
+p8255b equ 0642h
+p8255c equ 0646h
+p8255mode equ 0646h
+code segment 
+       assume cs:code
+start: mov dx,p8255mode
+       mov al,10010000b
+	   out dx,al;送方式控制字
+
+a1:    mov al,0ffh;灯全亮
+
+a2:    mov dx,p8255b
+       out dx,al;输出到b口
+	   
+	   ;写入中断向量
+a3:    push ds;数据段寄存器
+       mov ax,0000h
+	   mov ds,ax
+	   mov ax,offset mir7;取中断入口地址
+	   mov si,003ch;中断矢量地址
+	   mov [si],ax;填irq7的偏移矢量
+	   mov ax,cs;段地址
+	   mov si,003eh
+	   mov [si],ax;填irq7的段地址矢量
+	   ;计算机中有个规则，CPU只会得到中断类型号，然后乘4，得到其子程序入口地址，开始子程序
+	   ;但是自定义中断，子程序是千变万化的，为了让计算机执行我们自己编写的程序，所以我们自己就需要
+	   ;把子程序入口地址放到类型号*4的地址那去
+	   ;中断类型号查表可知
+
+a4:    mov ax,offset mir6
+       mov si,0038h
+	   mov [si],ax
+	   mov ax,cs
+	   mov si,003ah
+	   mov [si],ax
+	   cli ;关中断
+	   pop ds
+
+	   ;初始化主片8259
+	   mov al,11h;级联，边沿触发，要icw4
+	   out 20h,al;icw1，端口地址查表可知
+	   mov al,08h;中断类型号从8开始
+	   out 21h,al ;icw2
+	   mov al,04h
+	   out 21h,al;icw3
+	   mov al,01h;非缓冲方式，8086/8088配置
+	   out 21h,al;icw4
+
+	   ;初始化从片8259
+	   mov al,11h;级联，边沿触发，要icw4
+	   out 0a0h,al;icw1
+	   mov al,30h;中断类型号从30h开始
+	   out 0a1h,al;icw2
+	   mov al,02h;通过IR1引脚连接主片
+	   out 0a1h,al;icw3
+	   mov al,01h ;非缓冲方式，88086/8088配置
+	   out 0a1h,al;icw4
+	   mov al,0fdh
+	   out 0a1h,al;从8259 ocw1=1111 1101允许ir1中断请求
+	   mov al,2bh;0010 1011
+	   out 21h,al;主8259 ocw1不屏蔽ir2,ir4,ir6,ir7
+	   sti;允许中断发生
+
+a5:    nop 
+       mov al,0ffh;数据灯全亮
+	   mov dx,p8255b
+	   out dx,al;送b口
+	   jmp a5
+	   ;此段程序一直循环直到有中断产生
+
+mir7:  mov al,0f0h;红灯亮（绿灯灭）
+       mov dx,p8255b
+	   out dx,al;送b口
+	   mov al,20h
+	   out 20h,al;中断结束命令
+	   call delay
+	   iret;中断返回
+
+mir6:  mov al,00fh;绿灯亮（红灯灭）
+       mov dx,p8255b
+	   out dx,al;送b口
+	   mov al,20h
+	   out 20h,al;中断结束命令
+	   call delay
+	   iret;中断返回
+
+delay: push cx;延时子程序
+       mov al,05h
+a6:    mov cx,0ffffh
+a7:    push ax
+       pop ax
+	   loop a7
+	   sub al,1
+	   jnz a6
+	   pop cx
+	   ret;call与ret实现子程序的机制
+
+code ends
+end satrt
+
+
+
+      

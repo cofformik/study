@@ -1,0 +1,82 @@
+p8255a equ 0640h
+p8255b equ 0642h
+p8255c equ 0646h
+p8255mode equ 0646h				;8255片选cs接ioy1
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start:
+		mov bl,00h				;初始时，数据灯全部熄灭
+		mov dx,p8255mode
+		mov al,10010000b
+		out dx,al				;送方式控制字
+
+		mov al,bl
+		mov dx,p8255b
+		out dx,al				;送b口
+	  
+		mov ax,0000h
+		mov ds,ax
+		mov ax, offset mir6 	;8254单元out1连接mir6
+		mov si, 0038h
+		mov [si], ax
+		mov ax,cs
+		mov si,003ah
+		mov [si], ax
+ 
+		cli
+		mov al, 11h				;上升边沿触发
+		out 20h, al
+		mov al, 08h
+		out 21h, al
+		mov al,04h
+		out 21h, al
+		mov al, 07h
+		out 21h, al
+		mov al, 10101111b		;开放了ir4 ir6 ir4必须开放 否则会造成不可预料的情况
+		out 21h, al
+		sti
+    
+
+		mov dx, con8254
+		mov al, 76h            	;8254计数器1工作在方式3，产生方波。 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 00h
+		out dx, al 
+		mov al, 048h            ;写入计数初值04800h
+		out dx, al 
+aa1: 
+		jmp aa1 
+;将gate1置为高电平，运行程序，在示波器中可以看到out1规律输出方波。
+;clk1输入为18.432khz 用计时器1计数18432次 得到周期为1s的方波。
+;想要得到周期1s的方波 计数初值为18432 即04800h
+;
+mir6:
+		cmp bl,0ffh
+		jz  m
+		shl bl,1				;数据灯逐渐点亮的控制
+		add bl,01h				;同上
+m:		mov dx,0642h
+		mov al,bl
+		out dx,al
+		iret
+    
+delay:
+		push cx
+		push ax
+		mov cx,0ffffh
+l1:
+		loop l1
+		pop ax
+		pop cx
+		ret
+
+code 	ends 
+		end start

@@ -1,0 +1,75 @@
+P4 DATA 0C0H          
+P4SW DATA 0BBH         
+
+ORG 0000H            
+LJMP START             
+
+ORG 001BH       ;T1?D??¨¨??¨²¦Ì??¡¤      
+LJMP TINT              
+
+
+START:
+MOV P4SW,#30H                                         
+MOV R0, #00H                   
+MOV TMOD,#10H             
+                      
+MOV TH1,#5DH           
+MOV TL1,#3EH           
+  
+SETB ET1 ;??¡ä??¡Â1?D???¨ºD¨ª??????
+SETB EA  ;cpu¡Á¨¹¦Ì??D???¨ºD¨ª??
+SETB TR1
+
+LOOP : AJMP LOOP  
+
+TINT:
+ACALL ROTATE1 
+AJMP RETURN   
+
+
+RETURN:
+MOV TH1,#5DH
+MOV TL1,#3EH
+RETI         
+
+ROTATE1:
+CLR P1.3
+CLR P1.4
+CJNE R0,#0,A10     
+AJMP L10  
+A10:
+CJNE R0,#1,A11
+AJMP L11  
+A11:
+CJNE R0,#2,A12
+AJMP L12 
+A12:
+AJMP L13  
+
+L10:
+CLR P3.2 ;
+SETB P1.0
+INC R0
+AJMP EXIT1
+L11:
+SETB P3.2
+SETB P1.0
+INC R0
+AJMP EXIT1 
+L12:
+SETB P3.2  
+CLR P1.0
+INC R0
+AJMP EXIT1
+L13:
+CLR P3.2    
+CLR P1.0
+MOV R0,#00H
+
+EXIT1:
+SETB P1.3
+SETB P1.4
+RET
+
+
+END

@@ -1,0 +1,357 @@
+#pragma warning(disabke:4996)
+#include<stdio.h>
+#include<conio.h> 
+#include<stdlib.h> 
+
+#define PRODUCT_LEN sizeof(struct Product) 
+#define FORMAT "%-8d%-15s%-15s%-15s%-12.1lf%-8d\n"
+#define DATA astPro[i].iId,astPro[i].acName,astPro[i].acProducer,astPro[i].acDate,astPro[i].dPrice,astPro[i].iAmount
+struct Product                        
+{
+	int  iId;                         
+	char acName[15];                  
+	char acProducer[15];              
+	char acDate[15];                  
+	double dPrice;                    
+	int  iAmount;                     
+};
+struct Product astPro[100];           
+
+void ShowMenu();                      /*显示主菜单*/
+void InputProduct();                  /*商品入库*/
+void OutputProduct();                 /*商品出库*/
+void DeleteProduct();                 /*删除商品*/
+void ModifyProduct();                 /*修改商品*/
+void SearchProduct();                 /*商品查询*/
+int ShowProduct();                   /*显示商品*/
+
+
+
+
+void main()                           /*主函数*/
+{
+	int iItem;
+	ShowMenu();
+	scanf("%d", &iItem);              /*输入菜单项*/
+	while (iItem)
+	{
+		switch (iItem)
+		{
+		case 1:InputProduct(); break;  
+		case 2:OutputProduct(); break; 
+		case 3:DeleteProduct(); break; 
+		case 4:ModifyProduct(); break; 
+		case 5:SearchProduct(); break; 
+		case 6:ShowProduct(); break;   
+		default:printf("请输入正确数字"); 
+		}
+		getch();                       
+		ShowMenu();                    
+		scanf("%d", &iItem);          
+	}
+}
+
+void ShowMenu()                       
+{
+	system("cls");
+	printf("\n\n\n\n\n");
+	printf("\t\t|---------------------PRODUCT-------------------|\n");
+	printf("\t\t|\t 1. 商品入库                                  |\n");
+	printf("\t\t|\t 2. 商品出库					|\n")；
+	printf("\t\t|\t 3. 删除商品                                                                    |\n");
+	printf("\t\t|\t 4. 修改商品                                                                    |\n");
+	printf("\t\t|\t 5. 搜索商品					|\n");			  
+	printf("\t\t|\t 6. 显示商品					|\n");			    
+	printf("\t\t|\t 0. 退出					|\n");			      
+	printf("\t\t|-----------------------------------------------|\n\n");
+	printf("\t\t\t选择(0-6):");
+}
+	system("cls");
+	printf("\n\n\n\n\n");
+	printf("\t\t|---------------------PRODUCT-------------------|\n");
+	printf("\t\t|   1. 商品入库                                 |\n");
+	printf("\t\t|   2. 商品出库                                 |\n");
+	printf("\t\t|   3. 删除商品                                 |\n");
+	printf("\t\t|   4. 修改商品                                 |\n");
+	printf("\t\t|   5. 搜索商品                                 |\n");
+	printf("\t\t|   6. 显示商品                                 |\n");
+	printf("\t\t|   0. 退出                                     |\n");
+	printf("\t\t|-----------------------------------------------|\n\n");
+	printf("\t\t\t选择(0-6):");
+
+void InputProduct()                                    /*商品入库函数*/
+{
+	int i, iMax = 0;                                   
+	char cDecide;                                      
+	FILE* fp;                                          
+
+	iMax = ShowProduct();
+
+	if ((fp = fopen("product.txt", "ab")) == NULL)     /*追加方式打开一个二进制文件*/
+	{
+		printf("can not open file\n");                 
+		return;
+	}
+	printf("输入 y/Y 入库商品:");
+	getchar();                                        
+	cDecide = getchar();                              
+	while (cDecide == 'y' || cDecide == 'Y')          
+	{
+		printf("编号:");                                
+		scanf("%d", &astPro[iMax].iId);
+		for (i = 0; i < iMax; i++)
+			if (astPro[i].iId == astPro[iMax].iId)      
+			{
+				printf("商品已存在,请输入任意键返回!");
+				getch();
+				fclose(fp);                      
+				return;
+			}
+		printf("名称:");                             
+		scanf("%s", &astPro[iMax].acName);
+		printf("生产商:");                         
+		scanf("%s", &astPro[iMax].acProducer);
+		printf("生产日期(例如 15-5-1):");             
+		scanf("%s", &astPro[iMax].acDate);
+		printf("价格:");                            
+		scanf("%lf", &astPro[iMax].dPrice);
+		printf("数量:");                           
+		scanf("%d", &astPro[iMax].iAmount);
+
+		if (fwrite(&astPro[iMax], PRODUCT_LEN, 1, fp) != 1)  /*在文件末尾添加该商品记录*/
+		{
+			printf("can not save!\n");
+			getch();                                 
+		}
+		else
+		{
+			printf("编码为 %d 的商品已入库!\n", astPro[iMax].iId);
+			iMax++;
+		}
+		printf("请输入 y/Y 继续输入:");      
+		getchar();                                   
+		cDecide = getchar();                         
+	}
+	fclose(fp);                                      
+	printf("成功入库!\n");
+}
+
+void OutputProduct()                               /*商品出库函数*/
+{
+	FILE* fp;
+	int iId, i, iMax = 0, iOut = 0;             /*iId表示商品编号，iOut表示要出库的商品数量*/
+	char cDecide;                                  
+
+	iMax = ShowProduct();
+
+	if (iMax <= -1)                                 
+	{
+		printf("请先入库!");
+		return;
+	}
+
+	printf("请输入编号:");
+	scanf("%d", &iId);                             
+	for (i = 0; i < iMax; i++)
+	{
+		if (iId == astPro[i].iId)                   
+		{
+			printf("找到该商品,请输入 y/Y 出库:");
+			getchar();
+			cDecide = getchar();
+			if (cDecide == 'y' || cDecide == 'Y')   
+			{
+				printf("请输入出库数量:");
+				scanf("%d", &iOut);
+				astPro[i].iAmount = astPro[i].iAmount - iOut;
+				if (astPro[i].iAmount < 0)          /*要出库的数量比实际库存量还小*/
+				{
+					printf("出库的数量比实际库存量小，现在库存数量为0!\n");
+					astPro[i].iAmount = 0;          
+				}
+				if ((fp = fopen("product.txt", "rb+")) == NULL)     /*读写方式打开一个二进制文件，文件必须存在*/
+				{
+					printf("can not open file\n");  /*提示无法打开文件*/
+					return;
+				}
+				fseek(fp, i * PRODUCT_LEN, 0);        /*文件指针移动到要出库的商品记录位置*/
+				if (fwrite(&astPro[i], PRODUCT_LEN, 1, fp) != 1) 
+				{
+					printf("can not save file!\n");
+					getch();
+				}
+				fclose(fp);
+				printf("出库成功!\n");
+				ShowProduct();                      
+			}
+			return;
+		}
+	}
+	printf("没有找到该商品！\n");         
+}
+
+void DeleteProduct()                                /*删除商品函数*/
+{
+	FILE* fp;
+	int i, j, iMax = 0, iId;
+
+	iMax = ShowProduct();
+
+	if (iMax <= -1)                                 
+	{
+		printf("请先输入!");
+		return;
+	}
+
+	printf("请输入要删除商品编码：");
+	scanf("%d", &iId);
+	for (i = 0; i < iMax; i++)
+	{
+		if (iId == astPro[i].iId)                     
+		{
+			for (j = i; j < iMax; j++)
+				astPro[j] = astPro[j + 1];
+			iMax--;
+
+			if ((fp = fopen("product.txt", "wb")) == NULL)  /*只写方式打开文件，文件存在则先删除并创建一个新文件*/
+			{
+				printf("can not open file\n");
+				return;
+			}
+			for (j = 0; j < iMax; j++)             /*将新修改的信息写入指定的磁盘文件中*/
+				if (fwrite(&astPro[j], PRODUCT_LEN, 1, fp) != 1)
+				{
+					printf("can not save!");
+					getch();
+				}
+			fclose(fp);
+			printf("成功删除该商品!\n");
+			ShowProduct();                      
+			return;
+		}
+	}
+	printf("找不到该商品！\n");
+}
+
+
+void ModifyProduct()                                /*修改商品函数*/
+{
+	FILE* fp;
+	int i, iMax = 0, iId;
+
+	iMax = ShowProduct();
+	if (iMax <= -1)                                 
+	{
+		printf("请先输入!");
+		return;
+	}
+
+	printf("请输入要修改商品的编码:");
+	scanf("%d", &iId);
+	for (i = 0; i < iMax; i++)
+	{
+		if (iId == astPro[i].iId)                  
+		{
+			printf("找到该商品，现在可以修改!\n");
+			printf("编码:");
+			scanf("%d", &astPro[i].iId);
+			printf("名称:");
+			scanf("%s", &astPro[i].acName);
+			printf("生产商:");
+			scanf("%s", &astPro[i].acProducer);
+			printf("生产日期:");
+			scanf("%s", &astPro[i].acDate);
+			printf("价格:");
+			scanf("%lf", &astPro[i].dPrice);
+			printf("数量:");
+			scanf("%d", &astPro[i].iAmount);
+			if ((fp = fopen("product.txt", "rb+")) == NULL)
+			{
+				printf("can not open\n");
+				return;
+			}
+			fseek(fp, i * PRODUCT_LEN, 0);             /*将新修改的信息写入指定的磁盘文件中*/
+			if (fwrite(&astPro[i], PRODUCT_LEN, 1, fp) != 1)
+			{
+				printf("can not save!");
+				getch();
+			}
+			fclose(fp);
+			printf("修改成功!\n");
+			ShowProduct();                        
+			return;
+		}
+	}
+	printf("找不到该商品！\n");
+}
+
+void SearchProduct()                                 /*查找商品函数*/
+{
+	//FILE *fp;
+	int iId, i, iMax = 0;
+	char cDecide;
+
+	iMax = ShowProduct();
+	if (iMax <= -1)                                  
+	{
+		printf("请先输入!");
+		return;
+	}
+
+	printf("请输入商品编码:");
+	scanf("%d", &iId);
+	for (i = 0; i < iMax; i++)
+		if (iId == astPro[i].iId)                    
+		{
+			printf("找到该商品,请输入 y/Y 显示该商品:");
+			getchar();
+			cDecide = getchar();
+			if (cDecide == 'y' || cDecide == 'Y')
+			{
+				printf("编码      名称         生产商         日期           价格       数量\n");
+				printf(FORMAT, DATA);           
+				return;
+			}
+		}
+	printf("找不到该商品");         
+}
+
+
+int ShowProduct()                              /*显示所有商品信息*/
+{
+	int i, iMax = 0;
+	FILE* fp;
+	if ((fp = fopen("product.txt", "rb")) == NULL)    
+	{
+		printf("can not open file\n");                 
+		return -1;
+	}
+	while (!feof(fp))                                  /*判断文件是否结束*/
+		if (fread(&astPro[iMax], PRODUCT_LEN, 1, fp) == 1)
+			iMax++;                                        /*统计文件中记录条数*/
+	fclose(fp);                                        
+
+	if (iMax == 0)                                     
+		printf("没有记录文件!\n");
+	else                                               
+	{
+		printf("编码      名称         生产商         日期           价格       数量\n");
+		for (i = 0; i < iMax; i++)
+		{
+			printf(FORMAT, DATA);                     
+		}
+	}
+	return iMax;
+	fclose(fp);                                       
+	if (iMax == 0)                                    
+		printf("没有记录文件!\n");
+	else                                               
+	{
+		printf("编码      名称         生产商         日期           价格       数量\n");
+		for (i = 0; i < iMax; i++)
+		{
+			printf(FORMAT, DATA);                     
+		}
+	}
+	return iMax;
+}

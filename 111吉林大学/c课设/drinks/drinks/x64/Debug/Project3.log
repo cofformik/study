@@ -1,0 +1,38 @@
+﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(534,5): warning MSB8028: 中间目录(x64\Debug\)包含从另一个项目(Project3.vcxproj)共享的文件。   这会导致错误的清除和重新生成行为。
+  yuan.c
+C:\Hands\Project3\Project3\yuan.c(912,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 3 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(912,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 3 冲突
+C:\Hands\Project3\Project3\yuan.c(912,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 4 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(912,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 4 冲突
+C:\Hands\Project3\Project3\yuan.c(947,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 3 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(947,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 3 冲突
+C:\Hands\Project3\Project3\yuan.c(947,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 4 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(947,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 4 冲突
+C:\Hands\Project3\Project3\yuan.c(982,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 3 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(982,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 3 冲突
+C:\Hands\Project3\Project3\yuan.c(982,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 4 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(982,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 4 冲突
+C:\Hands\Project3\Project3\yuan.c(1017,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 3 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(1017,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 3 冲突
+C:\Hands\Project3\Project3\yuan.c(1017,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 4 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(1017,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 4 冲突
+C:\Hands\Project3\Project3\yuan.c(1052,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 3 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(1052,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 3 冲突
+C:\Hands\Project3\Project3\yuan.c(1052,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 4 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(1052,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 4 冲突
+C:\Hands\Project3\Project3\yuan.c(1111,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 3 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(1111,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 3 冲突
+C:\Hands\Project3\Project3\yuan.c(1111,12): warning C4477: “printf”: 格式字符串“%d”需要类型“int”的参数，但可变参数 4 拥有了类型“char *”
+C:\Hands\Project3\Project3\yuan.c(1111,12): warning C4313: "printf": 格式字符串中的 "%d" 与类型为 "char *" 的参数 4 冲突
+C:\Hands\Project3\Project3\yuan.c(1247,3): warning C4013: “getch”未定义；假设外部返回 int
+C:\Hands\Project3\Project3\yuan.c(1259,2): warning C4013: “gets”未定义；假设外部返回 int
+C:\Hands\Project3\Project3\yuan.c(1420,9): warning C4101: “newIsDiscounted”: 未引用的局部变量
+C:\Hands\Project3\Project3\yuan.c(1546,19): warning C4305: “*=”: 从“double”到“float”截断
+C:\Hands\Project3\Project3\yuan.c(1554,19): warning C4305: “*=”: 从“double”到“float”截断
+C:\Hands\Project3\Project3\yuan.c(1563,19): warning C4305: “*=”: 从“double”到“float”截断
+C:\Hands\Project3\Project3\yuan.c(1572,19): warning C4305: “*=”: 从“double”到“float”截断
+C:\Hands\Project3\Project3\yuan.c(1581,19): warning C4305: “*=”: 从“double”到“float”截断
+C:\Hands\Project3\Project3\yuan.c(1589,18): warning C4305: “*=”: 从“double”到“float”截断
+  源1.c
+  正在生成代码...
+  Project3.vcxproj -> C:\Hands\Project3\x64\Debug\drink.exe

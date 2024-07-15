@@ -1,0 +1,176 @@
+DATA SEGMENT
+	SIGN DB 00H
+DATA ENDS
+CODE SEGMENT
+	ASSUME CS:CODE,DS:DATA
+START:
+	MOV AX,0000H
+	MOV DS,AX
+
+	MOV DX,0646H
+	MOV AL,90H
+	OUT DX,AL
+
+	MOV AX,OFFSET MIR6
+	MOV SI,0038H
+	MOV [SI],AX
+	MOV AX,CS
+	MOV SI,003AH
+	MOV [SI],AX
+
+	MOV AX,OFFSET MIR7
+	MOV SI,003CH                                                                                                                                                                                                                                                                                                                    
+	MOV [SI],AX
+	MOV AX,CS
+	MOV SI,003EH
+	MOV [SI],AX
+
+	CLI
+	MOV AL,11H
+	OUT 20H,AL
+	MOV AL,08H
+	OUT 21H,AL
+	MOV AL,04H
+	OUT 21H,AL
+	MOV AL,07H
+	OUT 21H,AL
+	MOV AL,2FH
+	OUT 21H,AL
+	STI
+
+AA1:
+	MOV DX,0642H
+	MOV AL,0FFH
+	OUT DX,AL
+	JMP AA1
+MIR6:
+	MOV DX,0642H
+	MOV AL,0FH
+	OUT DX,AL
+	CALL DELAY
+	CALL DELAY
+	CALL DELAY
+	CALL DELAY
+	CMP SIGN,01H
+	JZ RED
+	JMP BACK
+RED:
+	MOV DX,0642H
+	MOV AL,0F0H
+	OUT DX,AL
+BACK:
+	IRET
+MIR7:
+	STI
+	MOV SIGN,01H
+	MOV DX,0642H
+	MOV AL,0F0H
+	OUT DX,AL
+	CALL DELAY
+	CALL DELAY
+	CALL DELAY
+	CALL DELAY
+	MOV SIGN,00H
+	IRET
+DELAY PROC NEAR
+	MOV CX,0FFFFH
+	LOOP $
+	RET
+DELAY ENDP
+
+CODE ENDS
+	END START
+
+
+
+
+
+
+
+
+
+
+;◊Û”“∑¥¡À£¨kk1kk2
+DATA SEGMENT
+     SIGN DB 00H
+DATA ENDS
+CODE SEGMENT
+     ASSUME CS:CODE,DS:DATA
+START:
+     MOV AX,0000H
+     MOV DS,AX
+     
+     
+     MOV AX,OFFSET MIR6
+     MOV SI,0038H
+     MOV [SI],AX
+     MOV AX,CS
+     MOV SI,003AH
+     MOV [SI],AX
+     
+     MOV AX,OFFSET MIR7
+     MOV SI,003CH
+     MOV [SI],AX
+     MOV AX,CS
+     MOV SI,003EH
+     MOV [SI],AX
+     
+     CLI
+     MOV AL,11H
+     OUT 20H,AL
+     MOV AL,08H
+     OUT 21H,AL
+     MOV AL,04H
+     OUT 21H,AL
+     MOV AL,07H
+     OUT 21H,AL
+     MOV AL,2FH
+     OUT 21H,AL
+     STI
+     
+     MOV DX,0646H
+     MOV AL,90H
+     OUT DX,AL
+     MOV DX,0642H
+     MOV AL,80H
+     OUT DX,AL
+     MOV CL,00H
+     MOV BL,00H
+WHILE1:
+    CMP BL,01H
+    JZ LEFT
+    CMP BL,02H
+    JZ RIGHT
+    JMP WHILE1
+    
+LEFT:
+    ROL AL,01H
+    MOV DX,0642H
+    OUT DX,AL
+    CALL DELAY
+    JMP WHILE1
+    
+RIGHT:
+    ROR AL,01H
+    MOV DX,0642H
+    OUT DX,AL
+    CALL DELAY
+    JMP WHILE1
+     
+MIR6:
+    STI
+    MOV BL,01H
+    IRET
+    
+MIR7:
+    STI
+    MOV BL,02H
+    IRET
+    
+DELAY PROC NEAR
+     MOV CX,0FFFFH
+     LOOP $
+     RET    
+
+CODE ENDS
+END START

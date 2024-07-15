@@ -1,0 +1,124 @@
+m8251_data equ 0600h             	;8251数据端口地址
+m8251_con equ 0602h              	;8251控制端口地址
+m8254_2 equ 06c4h                	;8254计数器2端口地址
+m8254_con equ 06c6h              	;8254控制寄存器端口地址
+m8255_con equ 0646h              	;8255控制寄存器端口地址
+m8255_b equ 0642h                	;8255b口地址
+;关于接线 rxclk txclk out2 clk2 gate2 已在机箱内部接好
+sstack  segment stack
+		dw 64 dup(?)
+sstack  ends
+ 
+code 	segment
+		assume cs:code
+start:  
+		mov ax, 0000h
+		mov ds, ax
+ 
+		mov dx, m8255_con
+		mov al, 90h
+		out dx, al
+		mov dx, m8255_b
+		mov al, 11000111b			;开始时数据灯状态 如果传输无错误保持此状态
+		out dx, al
+		;初始化8255，b口输出
+ 
+aa0: 
+		mov si, 3000h             	;数据首写入首地址
+		mov cx, 001ah				;循环26次
+		mov ax, 61h					;“a”的ascii码为61h
+aa1: 	
+		mov [si], ax
+		inc ax
+		inc si
+		loop aa1
+ 
+		;初始化 8254，得到收发时钟
+		mov al, 0b6h				;计数器2 先读/写低8位再读/写高8位 方式3 二进制数
+		mov dx, m8254_con
+		out dx, al
+		mov al, 0ch
+		mov dx, m8254_2
+		out dx, al
+		mov al, 00					;写入计数初值000ch=12 为确保波特率为9600
+		out dx, al
+;
+;备注：clk2接的是1.8432mhz的时钟
+;波特率9600 波特率因子16（由方式控制字决定） out2接rxclk和txclk rxclk=txclk=9600x16=153600hz
+;clk2=1.8432mhz out2=153600hz 可得到计数器2的计数初值 即clk2/out2=12=000ch 
+; 
+		mov dx, m8251_con
+		mov al, 00h
+		out dx, al
+		call delay
+		;复位 8251
+ 
+		mov al, 40h
+		out dx, al
+		call delay
+ 
+		;8251 方式字
+		mov al,7eh
+		out dx, al					;写入8251方式字7eh=01111110b，详见实验讲义p59
+		call delay					;1位停止位 偶校验 字符长度8位 波特率系数16
+ 
+		;8251 控制字
+		mov al, 34h
+		out dx, al					;写入8251控制字34h=00110100b，详见实验讲义p60
+		call delay					;
+ 
+		mov di, 4000h				;写入地址
+		mov si, 3000h				;读入地址
+		mov cx, 001ah				;循环26次
+a1: 
+		mov al, [si]
+		push ax
+		mov al, 37h					;数据终端准备好了
+		mov dx, m8251_con
+		out dx, al
+		pop ax
+		mov dx, m8251_data
+		out dx, al  
+		;发送数据
+		mov dx, m8251_con
+a2: 
+		in al, dx
+		and al, 01h
+		;判断发送缓冲是否为空
+		jz a2
+		call delay
+a3: 
+		in al, dx 
+		;mov dx, m8255_b
+		;out dx, al
+		test al, 02h
+		;判断是否接收到数据
+		jz a3
+		test al, 38h;0011 1000
+		;判断是否有错误，如果出现错误则显示在d7-d0上
+		jz continue
+		mov dx, m8255_b
+		out dx, al					;显示错误
+		jmp exit
+continue:
+		mov dx, m8251_data
+		;in al, dx 					;cpu不读取接收到数据 造成溢出错误 d4灯亮
+		;读取接收到的数据
+		mov [di], al
+		inc di
+		inc si
+		loop a1						;循环26次
+exit:    
+		mov ah,4ch
+		int 21h 
+		;程序终止
+ 
+delay:
+		push cx
+		mov cx,3000h
+a5: 
+		loop a5
+		pop cx
+		ret
+code 	ends
+		end start

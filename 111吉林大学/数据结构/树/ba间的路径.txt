@@ -1,0 +1,79 @@
+#include<iostream>
+#include<vector>
+using namespace std;
+struct TreeNode {
+    int val;
+    TreeNode* left;
+    TreeNode* right;
+    TreeNode(int x = 0) :val(x), left(nullptr), right(nullptr) {}
+};
+TreeNode* buildTree() {
+    int k;
+    cin >> k;
+    if (!k) return nullptr;
+    TreeNode* root = new TreeNode(k);
+    root->left = buildTree();
+    root->right = buildTree();
+    return root;
+}
+void find_path(TreeNode* t,vector<int>& path, int target,int& flag) {
+    if (!t||flag == 1) return;
+    path.push_back(t->val);
+    if (t->val == target) {
+        flag = 1;
+        return;
+    }
+    find_path(t->left, path,target,flag);
+    find_path(t->right, path, target, flag);
+    if (!flag) path.pop_back();
+}
+bool Isin(int a, vector<int> path) {
+    for (int i = 0; i < path.size(); ++i) {
+        if (a == path[i])
+            return true;
+    }
+    return false;
+}
+void print(vector<int> path1,vector<int> path2) {
+    int flag = 1;
+    vector<int> reg;
+    for (int i = path1.size() - 1; i >= 0; i--) {
+        if (Isin(path1[i], path2)) {
+            if (flag) {
+                flag = 0;
+                reg.push_back(path1[i]);
+            }
+        }
+        else {
+            reg.push_back(path1[i]);
+        }
+    }
+    for (int j = 0; j < path2.size(); ++j) {
+        if (Isin(path2[j], path1)) {
+            continue;
+        }
+        else {
+            reg.push_back(path2[j]);
+        }
+    }
+    cout << reg.size() - 1 << endl;
+    for (int k = 0; k < reg.size(); ++k)
+        cout << reg[k]<<" ";
+    cout << endl;
+}
+int main() {
+    TreeNode* root = buildTree();
+    int n;
+    cin >> n;
+    while (n--) {
+        int a, b;
+        cin >> a >> b;
+        vector<int> path1, path2;
+        int flag = 0;
+        find_path(root, path1, a,flag);
+        flag = 0;
+        find_path(root, path2, b,flag);
+        print(path1, path2);
+  }
+    return 0;
+}

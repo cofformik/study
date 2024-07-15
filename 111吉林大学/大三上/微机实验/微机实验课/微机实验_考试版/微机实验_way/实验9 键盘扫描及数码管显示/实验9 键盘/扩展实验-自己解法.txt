@@ -1,0 +1,202 @@
+DATA SEGMENT
+	DTABLE  DB 00H,3FH,06H,5BH,4FH,66H,6DH,7DH,07H,7FH,6FH,77H,7CH,39H,5EH,79H,71H	
+	VALUE   DB 01000000B	
+	FLAG	DB 00H	
+	EDGE    DB 01H		
+DATA ENDS
+
+CODE SEGMENT
+	ASSUME CS:CODE,DS:DATA
+START:  
+	MOV AX,DATA				;装载数据段
+	MOV DS,AX
+	MOV SI,3000H		
+	MOV AL,00H
+	MOV [SI],AL        	
+	MOV DI,3000H
+	MOV DX,0606H  		
+	MOV AL,81H			
+	OUT DX,AL
+	
+BEGIN:  
+	CALL SHOW               
+	CALL CLEAR             
+	CALL SCAN            
+	JNZ INK1				
+	JMP BEGIN
+ 
+INK1:  
+	CALL SHOW
+	CALL DALLY			
+	CALL DALLY
+	CALL CLEAR
+	CALL SCAN				
+	JNZ INK2                
+	JMP BEGIN
+
+INK2:  
+	MOV CH,0FEH			
+	MOV CL,00H			
+ 
+COLUM:  
+	MOV AL,CH			
+	MOV DX,0600H
+	OUT DX,AL
+	MOV DX,0604H		
+	IN 	AL,DX
+L1: 
+	TEST AL,01H          
+	JNZ L2					
+	MOV AL,01H              
+	JMP KCODE
+L2: 
+	TEST AL,02H            
+	JNZ L3					
+	MOV AL,05H             
+	JMP KCODE
+L3: 
+	TEST AL,04H           
+	JNZ L4					
+	MOV AL,09H              
+	JMP KCODE
+L4: 
+	TEST AL,08H             
+	JNZ NEXT			
+	CMP CL,03H			
+	JZ 	QUIT			
+	MOV AL,0DH              
+KCODE:  
+	ADD AL,CL			
+	CALL COUT		
+	PUSH AX
+KON: 
+	CALL SHOW				
+	CALL CLEAR			
+	CALL SCAN				;扫描按键，判断按键是否弹起
+	JNZ KON					;未弹起则继续循环等待弹起
+	POP AX
+	
+NEXT:  
+	INC CL				
+	MOV AL,CH				
+	TEST AL,08H			
+	JZ KERR				
+	ROL AL,1			
+	MOV CH,AL				
+	JMP COLUM
+KERR:  
+	JMP BEGIN
+QUIT:	
+	MOV AH,4CH			
+	INT 21H
+
+COUT: 
+	MOV BL, EDGE
+	CMP BL, 00H
+	JNZ A1
+	INC BL
+	DEC FLAG
+	;ROL VALUE, 1
+	MOV VALUE, 01000000B
+	;CMP DI,2FFFH		
+	;JNZ A1
+	;INC DI				
+	;DEC FLAG				
+	;ROL VALUE,1				;00100000B->01000000B
+A1:
+	CMP BL, 07H
+	JNZ A2
+	DEC BL
+	INC FLAG
+	;ROR VALUE, 1
+	MOV VALUE, 80H
+	;CMP DI,3006H		
+	;JNZ A2
+	;DEC DI				
+	;INC FLAG				
+	;ROR VALUE,1				;00000001B->10000000B
+A2:
+	MOV SI, DI              	
+	MOV [SI],AL				
+	CMP FLAG,01H			
+	JZ	A3
+	;INC DI	
+	INC BL				
+	ROR VALUE,1
+	JMP A4
+A3:							
+	;DEC DI
+	DEC BL
+	ROL VALUE,1
+A4:
+	MOV EDGE, BL
+	NOP
+GOBACK: 
+	RET
+		
+		
+SCAN: 					
+	MOV AL,00H             
+	MOV DX,0600H			
+	OUT DX,AL
+	MOV DX,0604H
+	IN 	AL,DX				
+	NOT AL						
+	AND AL,0FH			
+	RET
+	
+CLEAR:  					
+	MOV DX,0602H         
+	MOV AL,00H
+	OUT DX,AL
+	RET
+	
+SHOW: 						
+	PUSH AX    				;以缓冲区存放的键值为键值表偏移找到键值并显示             
+	MOV SI,3000H			
+	MOV DL,0DFH				;11011111
+	MOV AL,DL
+AGAIN:  
+	PUSH DX
+	TEST AL,VALUE			;当前选通的数码管是否为开放的那个数码管
+	JZ	B1	
+	JMP B2
+	;MOV AL,0FFH			
+B1:							
+	MOV DX,0600H
+	OUT DX,AL				
+	MOV AL,[SI]		
+	MOV BX,OFFSET DTABLE	
+	AND AX,00FFH
+	ADD BX,AX				
+	MOV AL,[BX]				
+	MOV DX,0602H
+	OUT DX,AL				
+	CALL DALLY
+	;INC SI	
+B2:		
+	POP DX
+	MOV AL,DL
+	TEST AL,01H				
+	JZ OUT1				
+	ROR AL,1
+	MOV DL,AL
+	JMP AGAIN			
+OUT1:  
+	POP AX				
+	RET
+
+
+DALLY:  
+	PUSH CX                	;延时子程序
+	MOV CX,0006H
+T1: 	
+	MOV AX,009FH
+T2: 
+	DEC AX
+	JNZ T2
+	LOOP T1
+	POP CX
+	RET
+CODE ENDS
+	END START

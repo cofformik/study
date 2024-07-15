@@ -1,0 +1,73 @@
+#include<iostream>
+#include<vector>
+#include<algorithm>
+using namespace std;
+struct Edge {
+	int verpre;
+	int veradj;
+	Edge* link;
+	Edge(int p, int v) :verpre(p), veradj(v), link(nullptr) {}
+};
+
+struct Vertex {
+	int vername;
+	Edge* adjacent;
+	Vertex(int v = 0) :vername(v), adjacent(nullptr) {}
+};
+void buildGraph(vector<Vertex*>& vt) {
+	int u, v;
+	cin >> u >> v;
+	Edge* t = new Edge(u, v);
+	if (vt[u]->adjacent == nullptr) {
+		vt[u]->adjacent = t;
+	}
+	else {
+		Edge* p = vt[u]->adjacent;
+		if (p->veradj > v) {
+			Edge* q = p;
+			vt[u]->adjacent = t;
+			t->link = q;
+			return;
+		}
+		while (p->link != nullptr && p->link->veradj < v)
+			p = p->link;
+		if (p->link == nullptr) {
+			p->link = t;
+
+		}
+		else {
+			Edge* q = p->link;
+			p->link = t;
+			t->link = q;
+		}
+
+	}
+}
+void DFS(const vector<Vertex*>& vt, int v, vector<int>& visited) {
+	cout << vt[v]->vername << " ";
+	visited[v] = 1;
+	for (Edge* t = vt[v]->adjacent; t != nullptr; t = t->link) {
+		if (visited[t->veradj] == 0)
+			DFS(vt, t->veradj, visited);
+	}
+}
+int main() {
+	int n, m;
+	cin >> n >> m;
+	vector<Vertex*> vt(n);
+	//初始化
+	for (int i = 0; i < n; ++i) {
+		vt[i] = new Vertex(i);
+	}
+	//创建图
+	while (m--) {
+		buildGraph(vt);
+	}
+	//遍历
+	vector<int> visited(n, 0);
+		for (int i = 0; i < n; ++i) {
+		if (visited[i] == 0)
+			DFS(vt, i, visited);
+	}
+	return 0;
+}

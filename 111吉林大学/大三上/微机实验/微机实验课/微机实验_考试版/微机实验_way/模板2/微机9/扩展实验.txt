@@ -1,0 +1,212 @@
+;8255接口初始化，由Cs连接的Ioy端口决定。这里用的是ioy0�?
+my8255_a equ 0600h
+my8255_b equ 0602h
+my8255_c equ 0604h
+my8255_con  equ 0606h
+sstack  segment stack
+		dw 16 dup(?)
+sstack  ends
+ 
+data 	segment
+		dtable  db 00h,3fh,06h,5bh,4fh,66h,6dh,7dh,07h,7fh,6fh,77h,7ch,39h,5eh,79h,71h		;熄灭 0~9 a~f
+		value   db	01000000b			;用于确定开放指定的显示位置
+		fla		db 	00h					;用于标志移动方向 初始00h代表向左移动（从数码�?向数码管1�?01h代表向右移动
+data 	ends
+
+;
+;阅读程序�?请先阅读理��《微型计算机原理与接口技术》（第二版） p296-300 行扫描法
+;
+code 	segment
+		assume cs:code,ds:data
+start:  
+		mov ax,data				;装载数据�?
+		mov ds,ax
+		mov si,3000h			;建立缓冲区，存放要显示的键�?
+		mov al,00h
+		mov [si-1],al
+		mov [si],al        		;�? 清显示缓�?
+		mov [si+1],al			;�?
+		mov [si+2],al			;�?
+		mov [si+3],al			;�?
+		mov [si+4],al			;�?
+		mov [si+5],al			;�?
+		mov [si+6],al
+		mov di,3000h
+		mov dx,my8255_con  		;�?8255 控制�?
+		mov al,81h				;81h=10000001 a口方�? 输出 b口方�? 输出 c口低四位 输入
+		out dx,al
+begin:  
+		call dis                ;调用显示子程�?
+		call clear              ;清屏
+		call ccscan             ;扫描按键
+		jnz ink1				
+		jmp begin
+ 
+ink1:  
+		call dis
+		call dally				;消除前沿抖动
+		call dally
+		call clear
+		call ccscan				;再次扫描按键
+		jnz ink2                ;有键按下，转�?ink2
+		jmp begin
+	
+;确定按下键的位置
+ink2:  
+		mov ch,0feh				;11111110b 刚开始选取第一�?
+		mov cl,00h				;设置当前检测的是第几列
+ 
+colum:  
+		mov al,ch				;选取一列，将X1~x4中一个置0
+		mov dx,my8255_a
+		out dx,al
+		mov dx,my8255_c			;读Y1~y4，用于判断是哪一行按键闭�?
+		in 	al,dx
+l1: 
+		test al,01h             ;是否为第1�?
+		jnz l2					;不是则继续判�?
+		mov al,01h              ;设置�?行第1列对应的键�?
+		jmp kcode
+l2: 
+		test al,02h             ;是否为第2�?
+		jnz l3					;不是则继续判�?
+		mov al,05h              ;设置�?行第1列对应的键�?
+		jmp kcode
+l3: 
+		test al,04h             ;是否是第3�?
+		jnz l4					;不是则继续判�?
+		mov al,09h              ;设置�?行第1列对应的键�?
+		jmp kcode
+l4: 
+		test al,08h             ;是否是第4�?
+		jnz next				;不是则继续判�?
+		cmp cl,03h				;�?行第4�?为按键“F�?
+		jz 	quit				;按下“F�?则程序退�?
+		mov al,0dh              ;设置�?行第1列对应的键�?
+kcode:  
+		add al,cl				;将第1列的值加上当前列数，确定按键�?
+		call putbuf				;保存按键�?
+		push ax
+kon: 
+		call dis				;显示刷新
+		call clear				;清屏
+		call ccscan				;扫描按键，判断按键是否弹�?
+		jnz kon					;未弹起则继续循环等待弹起
+		pop ax
+next:  
+		inc cl					;当前检测的列数递增
+		mov al,ch				
+		test al,08h				;检测是否扫描到�?�?
+		jz kerr					;是则跳回到开始处
+		rol al,1				;没检测到�?列则准备检测下一�?
+		mov ch,al				
+		jmp colum
+kerr:  
+		jmp begin
+quit:	mov ah,4ch				;程序退�?
+		int 21h
+
+;
+;	数码�?		数码�?		数码�?		数码�?		数码�?		数码�?
+;	  �?---------------------------------------------------------�?
+;	  左（在最左侧停一下）
+;     �?-------------------------------------------------------->�?
+;	 															  右（在最右侧停一下）
+;     �?---------------------------------------------------------�?
+;如此往�?
+;
+
+putbuf: 
+		cmp di,2fffh			;超出右边�?数码�?
+		jnz a1
+		inc di					;2fffh->3000h
+		dec fla					;01h->00h
+		rol value,1				;00100000b->01000000b
+a1:
+		cmp di,3006h			;超出左边�?
+		jnz a2
+		dec di					;3006h->3005h
+		inc fla					;00h->01h
+		ror value,1				;00000001b->10000000b
+a2:
+		mov si,di              	
+		mov [si],al				;存键盘值到相应位的缓冲�?
+		cmp fla,01h				;移动方向标志为右�?
+		jz	a3
+		inc di					;左��
+		ror value,1
+		jmp a4
+a3:								;右��
+		dec di
+		rol value,1
+a4:
+		nop
+goback: 
+		ret
+		
+ccscan: 						;扫描是否有按键闭�?
+		mov al,00h             
+		mov dx,my8255_a			;�?列全选通，x1~x4�?
+		out dx,al
+		mov dx,my8255_c
+		in 	al,dx				;读Y1~y4
+		not al						
+		and al,0fh				;取出y1~y4的反�?
+		ret
+	
+clear:  						;清屏子程�?
+		mov dx,my8255_b         ;段位�?即可清除数码管显�?
+		mov al,00h
+		out dx,al
+		ret
+	
+dis: 							;显示键值子程序
+		push ax    				;以缓冲区存放的键值为键值表偏��找到键值并显示             
+		mov si,3000h			
+		mov dl,0dfh
+		mov al,dl
+again:  
+		push dx
+		test al,value			;当前选通的数码管是否为开放的那个数码�?
+		jz	b1	
+		mov al,0ffh				;�?封锁所有数码管
+b1:								;�?
+		mov dx,my8255_a
+		out dx,al				;设置x1~x6，选通一个数码管
+    	
+    	
+		mov al,[si]				;取出缓冲区中存放键�?
+		mov bx,offset dtable	
+		and ax,00ffh
+		add bx,ax				
+		mov al,[bx]				;将键值作为偏移和键值基地址相加得到相应的共阴极数码管编�?
+		mov dx,my8255_b
+		out dx,al				;写入数码管A~dp
+    
+		call dally
+		inc si					;取下一个键�?
+		pop dx
+		mov al,dl
+		test al,01h				;判断是否显示�?
+		jz out1					;显示完，返回
+		ror al,1
+		mov dl,al
+		jmp again				;未显示完，跳回继�?
+out1:  
+		pop ax				
+		ret
+
+
+dally:  
+		push cx               	;延时子程�
+		mov cx,0006h
+t1: 	
+		mov ax,009fh
+t2: 
+		dec ax
+		jnz t2
+		loop t1
+		pop cx
+		ret
+code 	ends
+		end start

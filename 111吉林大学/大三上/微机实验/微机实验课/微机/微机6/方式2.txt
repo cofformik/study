@@ -1,0 +1,34 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup() 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+		mov dx, con8254
+		mov al, 36h				;8254计数器0工作在方式3，产生方波，相当于clk
+		out dx, al
+		mov dx, a8254
+		mov al, 0ffh
+		out dx, al
+		mov al, 0ffh
+		out dx, al
+		;8254计数器在方式2下的负脉冲宽度仅为一个周期，所以加大out0产生的计数脉冲（clk1）的周期。
+		
+		mov dx, con8254
+		mov al, 74h             ;8254计数器1工作在方式2，产生方波。 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 11h
+		out dx, al 
+		mov al, 00h             ;写入计数初值11h，因为计数脉冲周期变长，次数适当减少计数器1的计数初值。
+		out dx, al 
+aa1: 
+		jmp aa1 
+;将gate1置为高电平，运行程序，在示波器中可以看到out1输出一段高电平后会输出一个宽度为一个周期的负脉冲。
+code 	ends 
+		end start
+

@@ -1,0 +1,23 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+				
+		mov dx, con8254
+		mov al, 70h             ;8254计数器1工作在方式0 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 05h 
+		out dx, al 
+		mov al, 00h             ;写入计数初值，从B口送初值，先低位，后高位
+		out dx, al 
+aa1: 
+		jmp aa1 
+code 	ends 
+		end start

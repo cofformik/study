@@ -1,0 +1,45 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+;8254计数器012以及控制端口的地址，由ioy决定， 此处用的ioy0
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+		mov dx, con8254
+		mov al, 36h             ;8254计数器0工作在方式3，产生方波，相当于clk
+		out dx, al
+		mov dx, a8254
+		mov al, 0e8h
+		out dx, al
+		mov al, 03h             ;分别写入低8位和高8位计数器初值，合起来是3e8h=1000
+		out dx, al
+ 
+		mov dx, con8254
+		mov al, 70h             ;8254计数器1工作在方式0，计数时输出低电平，到0时输出高电平 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 00h 
+		out dx, al 
+		mov al, 0ah             ;写入计数初值0a00h
+		out dx, al 
+aa1: 
+		jmp aa1 
+;将gate1置为低电平，运行程序。
+;将gate1置为高电平，在示波器中可以观察到out1输出低电平，待过一段时间后（计数器减至0）输出高电平。
+;当方式0控制字写进某计数器的控制寄存器后，计数器的输出out立即变低（与gate的状态无关）。
+;在gate为高电平的情况下，减1计数器开始计数。
+;每来一个计数脉冲clk，减1计数器的值减1，当减1计数器的变成0时，out变成高电平。
+;此高电平一直保持到cpu又写入一个方式0控制字，out又立即变低，
+;再写入计数初值，减1计数器按照新的计数初值开始计数;
+;或者cpu重新写一个计数初值，out也立即变低，计数器按新的计数初值计数，
+;并计数到0时，out又变成高电平为止。
+;
+;备注：工作方式重要性排序
+;3,0＞2＞1,4,5
+;
+code 	ends 
+		end start

@@ -1,0 +1,22 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+
+code 	segment 
+		assume cs:code
+start: 
+
+		mov dx, con8254
+		mov al, 76h             	;8254计数器1工作在方式3，产生方波。 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 00h
+		out dx, al 
+		mov al, 048h             	;写入计数初值04800h 
+		out dx, al 
+aa1: 
+		jmp aa1 
+
+code 	ends 
+		end start

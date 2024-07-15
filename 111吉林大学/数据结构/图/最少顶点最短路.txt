@@ -1,0 +1,124 @@
+#include<iostream>
+#include<vector>
+#include<algorithm>
+using namespace std;
+const int INF = 0X3f3f3f3f, maxn = 1e5 + 10;
+
+struct Edge {
+    int verpre;
+    int veradj;
+    int cost;
+    Edge* link;
+    Edge(int p, int v, int s) :verpre(p), veradj(v), cost(s), link(nullptr) {}
+};
+
+struct Vertex {
+    int vername;
+    Edge* adjacent;
+    Vertex(int v = 0) :vername(v), adjacent(nullptr) {}
+};
+
+void buildGraph(vector<Vertex*>& vt) {
+    int u, v, s;
+    cin >> u >> v >> s;
+    Edge* t = new Edge(u, v, s);
+    if (vt[u]->adjacent == nullptr) {
+        vt[u]->adjacent = t;
+    }
+    else {
+        Edge* p = vt[u]->adjacent;
+        if (p->veradj > v) {
+            Edge* q = p;
+            vt[u]->adjacent = t;
+            t->link = q;
+            return;
+        }
+        while (p->link != nullptr && p->link->veradj < v)
+            p = p->link;
+        if (p->link == nullptr) {
+            p->link = t;
+        }
+        else {
+            Edge* q = p->link;
+            p->link = t;
+            t->link = q;
+        }
+    }
+}
+
+int  findMin(const vector<int>& s, const vector<int>& dist, int n) {
+    int t = -1;
+    int Min = INF;
+    for (int i = 0; i < n; ++i) {
+        if (s[i] == 0 && dist[i] < Min) {
+            t = i;
+            Min = dist[i];
+        }
+    }
+    return t;
+}
+int findDep(vector<Vertex*> vt, const vector<int>& pre, int target) {
+    if (0 == target) return 1;
+    return findDep(vt, pre, pre[target]) + 1;
+}
+void Dijkstra(vector<Vertex*> vt, int u, vector<int>& pre, vector<int>& dist) {
+    int n = vt.size();
+    vector<int> s(n + 1, 0);
+    vector<int> pre0(n,-1);
+    dist[u] = 0;
+    for (int j = 0; j < n; ++j) {
+        int v = findMin(s, dist, n);
+        if (v == -1) return;
+        s[v] = 1;
+        for (Edge* t = vt[v]->adjacent; t != nullptr; t = t->link) {
+            int w = t->veradj;
+            if (s[w] == 0 && (dist[v] + t->cost) < dist[w]) {
+                dist[w] = dist[v] + t->cost;
+                pre[w] = v;
+                pre0[w] = v;
+
+            }
+            else if ( (dist[v] + t->cost) == dist[w]) {
+                pre0[w] = v;
+                if (findDep(vt, pre, w) > findDep(vt, pre0, w)) {
+                    pre[w] = v;
+                }
+            }
+        }
+    }
+}
+void findPath(vector<Vertex*> vt, const vector<int>& pre, int target) {
+    if (0 == target) { cout << "0"; return; }
+    findPath(vt, pre, pre[target]);
+    cout << "->" << target;
+}
+void printPath(vector<Vertex*> vt, const vector<int>& pre, const vector<int>& dist) {
+    for (int i = 1; i < vt.size(); ++i) {
+        if (dist[i] == INF) continue;
+        findPath(vt, pre, i);
+        cout << endl;
+    }
+}
+int main() {
+    int n, m;
+    cin >> n >> m;
+    vector<Vertex*> vt(n);
+    for (int i = 0; i < n; ++i) {
+        vt[i] = new Vertex(i);
+    }
+    while (m--) {
+        buildGraph(vt);
+    }
+    vector<int> pre(n, -1);
+    vector<int> dist(n, INF);
+    Dijkstra(vt, 0, pre, dist);
+    printPath(vt, pre, dist);
+
+    // 释放动态分配的内存
+    for (int i = 0; i < n; ++i) {
+        delete vt[i]->adjacent;
+        delete vt[i];
+    }
+
+    return 0;
+}

@@ -1,0 +1,36 @@
+ORG 0000H
+MOV R3, #5           
+LOOP0:
+MOV A,   #0FFH
+MOV P0, #0FFH     ;ии??e   
+
+
+MOV R2, #8
+LOOP1: CLR C
+RLC A
+MOV P0, A
+CALL DELAY
+DJNZ R2, LOOP1;?e??ивив
+
+
+MOV R2, #8
+LOOP2: SETB C
+RLC A
+MOV P0, A
+CALL DELAY
+DJNZ R2, LOOP2;?e???e
+
+
+SJMP 0000H            
+
+DELAY:
+MOV R5, #9      
+DL1:   MOV R6, #128    
+DL2:   MOV R7, #215    
+NOP              
+DL3:   DJNZ R7, DL3     
+DJNZ R6, DL2    
+DJNZ R5, DL1     
+RET              
+
+END

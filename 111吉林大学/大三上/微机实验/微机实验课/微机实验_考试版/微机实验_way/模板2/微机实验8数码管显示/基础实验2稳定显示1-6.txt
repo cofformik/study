@@ -1,0 +1,56 @@
+
+a8255_con equ 0606h
+a8255_a equ 0600h
+a8255_b equ 0602h
+a8255_c equ 0604h
+ 
+data segment
+table1:
+    db 7dh
+    db 6dh
+    db 66h
+    db 4fh
+    db 5bh
+    db 06h
+data ends
+code segment
+    assume cs:code,ds:data
+start:
+    mov ax,data
+    mov ds,ax
+    lea si,table1
+    mov dx,a8255_con
+    mov al,81h
+    out dx,al
+    mov dx,a8255_b
+    mov al,3fh
+    out dx,al
+    mov dx,a8255_a
+    mov al,00h
+    out dx,al
+x2:    
+    mov cx,06h
+    mov bx,0000h
+    mov al,11011111b
+x1: 
+    mov dx,a8255_a
+    out dx,al
+    ror al,1
+    push ax
+    mov al,[bx+si]
+    mov dx,a8255_b
+    out dx,al
+    pop ax
+    call delay
+    inc bx
+    loop x1
+    jmp x2    
+delay:
+    push cx
+    mov cx,0ffh
+x4:
+    loop x4
+    pop cx
+    ret
+code ends
+     end start

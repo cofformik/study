@@ -1,0 +1,604 @@
+;8255接在ioy0口
+;计数器8254接在ioy1口
+data segment
+        list db 3fh ,06h, 5bh, 4fh, 66h ,6dh, 7dh, 07h, 7fh, 6fh,77h,7ch,39h,5eh,79h,71h,00h
+    tabler :
+    	db  0eeh,0deh,0beh,7eh
+        db  0edh,0ddh,0bdh,7dh
+        db  0ebh,0dbh,0bbh,7bh
+        db  0e7h,0d7h,0b7h,77h
+    time db 00h, 00h    
+    flags db 00h;控制数码管的显示与否，1为显示，0为不显示
+    flagi db 00h;记录初始化是输入的第一个数还是第二个数
+    flagb db 00h ;记录b键是第一次按还是第二次按 
+    flaga db 00h;记录a键是第几次按下
+    shuma db 00h, 00h, 00h, 00h
+data ends
+code segment
+    assume cs:code,ds:data
+start: 
+    call initialize   
+l1: 
+    call show
+    call delay
+    call clear
+    mov dx,0600h
+    mov al,00h
+    out dx,al
+    mov dx,0604h
+    in al,dx
+    and al,0fh
+    cmp al,0fh
+    jz l1;按键全部为高电平，没有键按下
+    call delay;消除前沿抖动
+    mov dx,0600h
+    mov al,00h
+    out dx,al
+    mov dx,0604h
+    in al,dx
+    and al,0fh
+    cmp al,0fh
+    jz l1;消抖前的按键是由于干扰
+    ;到此说明有按键输入
+    mov ah,11111110b
+    mov dx,0600h
+    mov cx,04h
+l3: 
+    mov al,ah
+    mov dx,0600h
+    out dx,al
+    mov dx,0604h
+    in al,dx
+    and al,0fh
+    cmp al,0fh
+    jnz l2
+    rol ah,1
+    loop l3
+    jmp l1;没成功的处理------------------------------
+l2:
+    mov cl,4
+    shl ah,cl
+    or al,ah;此时al的高四位为列数，低四位为行数
+    lea si,tabler
+    mov bl,00h 
+    mov bh,00h
+l5: cmp al,[si+bx]
+    jz l4;确定了al代表的是哪个键码，值在bl中，进行数码管显示
+    inc bl
+    cmp bl,10h
+    jnz l5
+    jmp l1;键码值已经大于16个了，但还是没找到，放弃本次显示，重新按键输入
+    
+l4:;此时键码的偏移量已经在bl中了
+    cmp bl,0ah
+    je calla
+    cmp bl,0bh
+    je callb
+    cmp bl,0ch
+    je callc  
+    lea si,flagi
+    mov al,[si]
+    cmp al,01h
+    jbe input
+    jmp l1;初始化之后按得无效键
+calla:
+    call calla1
+l6:    
+	mov dx,0600h;按键是否松开
+    mov al,00h
+    out dx,al
+    mov dx,0604h
+    in al,dx
+    and al,0fh
+    cmp al,0fh
+    je lback
+    call show
+    jmp l6
+callb:
+    call callb1
+l7:    
+	mov dx,0600h;按键是否松开
+    mov al,00h
+    out dx,al
+    mov dx,0604h
+    in al,dx
+    and al,0fh
+    cmp al,0fh
+    je lback
+    call show
+    jmp l7
+input:
+    call input1
+l8:    
+	mov dx,0600h;按键是否松开
+    mov al,00h
+    out dx,al
+    mov dx,0604h
+    in al,dx
+    and al,0fh
+    cmp al,0fh
+    je lback
+    call show
+    call delay
+    call clear
+    jmp l8
+lback:  
+    jmp l1
+
+;===================================================================
+callc:
+    call clear
+    mov ah,4ch
+    int 21h 
+;================================================================================    
+initialize:
+    push  ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+     ;设置中断向量
+    mov ax,0000h
+    mov ds,ax
+	mov ax,offset mir6
+	mov si,0038h
+	mov [si],ax
+	inc si
+	inc si
+	mov ax,cs
+	mov [si],ax
+	cli
+	mov al,11h    
+    out 20h, al    ;命令字icw1，11h=00010001b
+    mov al, 08h
+    out 21h, al    ;命令字icw2，08h=00001000b
+    mov al, 04h
+    out 21h, al    ;命令字icw3，04h=00000100b
+    mov al, 01h
+    out 21h, al    ;命令字icw4，01h=00000001b
+    mov al, 2fh    ;ocw1，2fh=00101111b
+    out 21h, al 
+    sti 
+         
+    mov ax,data
+	mov ds,ax 
+	
+	lea si,flaga
+	mov al,00h
+	mov [si],al
+	 
+	lea si,flagb
+	mov al,00h
+	mov [si],al
+	
+	lea si,flags
+	mov al,00h
+	mov [si],al
+	
+	lea si,flagi
+	mov al,00h
+	mov [si],al
+	
+	lea si,time
+	mov al,00h
+	mov [si],al
+	mov [si+1],al
+	
+	lea si,shuma
+	mov al,16
+	mov [si],al
+	mov [si+1],al
+	mov [si+2],al
+	mov [si+3],al
+		
+    ;将8254 cs接ioy1，地址是0640h
+	mov dx,0646h
+	mov al,36h
+	out dx,al
+	mov dx,0640h
+	mov al,00h
+	out dx,al
+	mov al,48h
+	out dx,al;选定计数器0持续产生方波，频率为1000hz
+
+
+;	mov dx,0646h
+;	mov al,76h
+;	out dx,al;选定计数器1工作在方式3,并且写入16位数字
+;	mov dx,0642h
+;	mov al,0e8h 
+;	out dx,al
+;	mov al,03h
+;	out dx,al
+
+;将clk2接在系统的clk上
+
+    mov dx,0606h ;控制端口
+    mov al,89h
+    out dx,al;设置8255控制字，使得a,b口和c口低四位进行输入
+    mov dx,0600h ;a口
+    mov al,00h
+    out dx,al
+    mov dx,0602h ;b口
+    mov al,00h
+    out dx,al;开始时数码管不显示
+   	call delay
+   	call clear
+   
+
+pop di
+pop si
+pop dx
+pop cx
+pop bx
+pop ax
+ret
+;=============================================================
+calla1:
+    push  ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di 
+    lea si,flaga
+    mov al,[si]
+    cmp al,00h
+    jne ca1 
+    lea si,flags
+    mov al,01h
+    mov [si],al;通知中断可以开始显示倒计时了
+    lea si,flagi
+    mov al,[si]
+    cmp al,01h
+    ja ca2;输入时输入了两个数，那么数码管1也要显示值 
+    lea si,time
+    lea di,shuma
+    mov al,00h ;只输入了一个数，开始显示为0x00
+    mov [di],al
+    mov al,[si]
+    mov [di+1],al
+    mov al,00h
+    mov [di+2],al
+    mov [di+3],al 
+    lea si,flaga;表示第一次按下a键
+    mov al,01h
+    mov [si],al
+    jmp caback 
+     
+     
+ca2: 
+    lea si,time
+    lea di,shuma
+    mov al,[si]  ;并且开始显示数为xx00
+    mov [di],al
+    mov al,[si+1]
+    mov [di+1],al
+    mov al,00h
+    mov [di+2],al
+    mov al,00h
+    mov [di+3],al
+    
+    lea si,flaga;表示第一次按下a键
+    mov al,01h
+    mov [si],al
+    jmp caback 
+ca1:
+    call initialize 
+caback:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+;==================================================================
+callb1: 
+    push  ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    lea si,flagb
+    mov al,[si]
+    cmp al,00h ;说明是第一次按下b键
+    jne cb1
+    inc al
+    mov [si],al
+    lea si,flags
+    mov al,00h;暂停
+    mov [si],al
+    jmp cbback
+cb1: 
+    lea si,flagb
+    mov al,00h
+    mov [si],al
+    lea si,flags
+    mov al,01h;继续
+    mov [si],al
+cbback:
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax 
+    ret
+
+;====================================================================
+input1:
+   push  ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di 
+    lea si,flagi
+    mov al,[si]
+    cmp al,00h
+    jne i1;输入的是第二个数
+    lea si,time
+    mov [si],bl
+    lea si,shuma
+    mov [si+2],bl;放数到数码管3 /*这里难道不是1*/
+    mov al,01h
+    lea si,flagi
+    mov [si],al
+    jmp iback
+i1:
+    lea si,time
+    mov [si+1],bl
+    lea si,shuma
+    mov [si+3],bl
+    mov al,02
+    lea si,flagi
+    mov [si],al
+iback:
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax 
+    ret
+    
+;=====================================================================
+mir6:
+    push  ax ;先show之后检测是否是0000
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    lea si,flags
+    mov al,[si]
+    cmp al,01h
+    je m9;数码管标志位是0不让显示
+mback:    
+    mov al,20h
+	out 20h,al
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    iret
+m9:    call show
+    lea si,shuma
+    mov al,[si+3];数码管4，秒的个位
+    cmp al,00h
+    je m2;秒的个位是0
+    dec al
+    mov [si+3],al
+    jmp mback;秒的个位-1返回
+m2:
+    lea si,shuma
+    mov al,[si+2]
+    cmp al,00h
+    je m3;秒的个位十位都为0，向分借位
+    
+    ;到这里是秒的十位不为0，个位为0
+    dec al
+    mov [si+2],al
+    mov al,09h
+    mov [si+3],al;十位减一，个位置9
+    jmp mback
+
+m3:
+    lea si,shuma
+    mov al,[si+1]
+    cmp al,00h
+    je m4;分的个位，秒的十位和个位均为零
+    dec al
+    mov [si+1],al
+    mov al,05h
+    mov [si+2],al
+    mov al,09h
+    mov [si+3],al
+    jmp mback
+m4:
+    lea si,shuma
+    mov al,[si]
+    cmp al,00h
+    je m5;分和秒都是0
+    dec al
+    mov [si],al
+    mov al,09h
+    mov [si+1],al
+    mov al,05h
+    mov [si+2],al
+    mov al,09h
+    mov [si+3],al
+    jmp mback 
+m5:
+    ;到这里说明是0000了，计时结束，闪烁三次，回到初始状态
+    mov cx,0ffh
+m6:
+    call show
+    loop m6
+    call ldelay;时间长一些，看出来是在闪烁
+    mov cx,0ffh
+m7:
+    call show
+    loop m7
+   	call ldelay;时间长一些，看出来是在闪烁
+    mov cx,0ffh
+m8:
+    call show
+    loop m8    
+    call initialize;回到初始状态
+    jmp mback
+
+    
+;======================================================================
+show:
+    push  ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    mov dx,0600h
+    mov al,11111110b
+    out dx,al
+    lea di,shuma
+    mov al,[di]
+    mov ah,00h
+    mov bx,ax
+    lea di,list
+    mov al,[di+bx]
+    mov dx,0602h
+    out dx,al
+    call delay
+    call clear 
+    
+    
+    mov dx,0600h
+    mov al,11111101b
+    out dx,al
+    lea di,shuma
+    mov al,[di+1]
+    mov ah,00h
+    mov bx,ax
+    lea di,list
+    mov al,[di+bx]
+    mov dx,0602h
+    out dx,al
+    call delay
+    call clear 
+    
+    
+    mov dx,0600h
+    mov al,11111011b
+    out dx,al
+    lea di,shuma
+    mov al,[di+2]
+    mov ah,00h 
+    mov bx,ax
+    lea di,list
+    mov al,[di+bx]
+    mov dx,0602h
+    out dx,al
+    call delay
+    call clear 
+    
+    
+    mov dx,0600h
+    mov al,11110111b
+    out dx,al
+    lea di,shuma
+    mov al,[di+3]
+    mov ah,00h
+    mov bx,ax
+    lea di,list
+    mov al,[di+bx]
+    mov dx,0602h
+    out dx,al
+    call delay
+    call clear      
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret  
+;==========================================================
+clear:
+    push  ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    mov dx,0600h
+    mov al,0ffh
+    out dx,al
+    mov dx,0602h
+    mov al,00h
+    out dx,al
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    ret
+;=============================================================
+delay:
+    push cx
+    mov cx,00ffh
+d1:
+    loop d1
+    pop cx
+    ret 
+
+
+;=================================================================
+ldelay: 
+    push cx
+    mov  cx,0ffffh
+ld1:
+    loop ld1 
+    
+    mov  cx,0ffffh
+ld2:
+    loop ld2
+    
+    mov  cx,0ffffh
+ld3:
+    loop ld4
+        mov  cx,0ffffh
+ld4:
+    loop ld4
+        mov  cx,0ffffh
+ld5:
+    loop ld5
+        mov  cx,0ffffh
+ld6:
+    loop ld6
+    pop cx
+    ret
+code ends
+    end start
+    
+        
+        
+               
+    
+           
+    
+
+
+
+
+
+
+
+
+
+

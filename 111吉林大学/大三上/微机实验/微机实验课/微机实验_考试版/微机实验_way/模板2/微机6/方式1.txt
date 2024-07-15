@@ -1,0 +1,36 @@
+a8254 equ 0600h
+b8254 equ 0602h 
+c8254 equ 0604h 
+con8254 equ 0606h
+sstack 	segment stack 
+		dw 32 dup(?) 
+sstack 	ends 
+code 	segment 
+		assume cs:code
+start: 
+		mov dx, con8254
+		mov al, 36h	 ;8254计数器0工作在方式3，产生方波，相当于clk
+		out dx, al
+		mov dx, a8254
+		mov al, 0e8h
+		out dx, al
+		mov al, 03h ;分别写入低8位和高8位计数器初值，合起来是3e8h=1000
+		out dx, al
+		;8254计数器0工作在方式3，产生方波，相当于clk
+		
+		mov dx, con8254
+		mov al, 72h       ;8254计数器1工作在方式1，计数时输出低电平，到0时输出高电平 
+		out dx, al 
+		mov dx, b8254 
+		mov al, 00h 
+		out dx, al 
+		mov al, 10h             ;写入计数初值0a00h
+		out dx, al 
+aa1: 
+		jmp aa1 
+;将gate1置为低电平，运行程序，在示波器中可以看到out1输出高电平。
+;把开关闭合然后快速断开，使gate1产生一次脉冲，在示波器中可以观察到out1输出低电平
+;待过一段时间后（计数器减至0）输出高电平。
+;重复上述过程，可以看到每次gate1产生脉冲，8254都会开始计数（输出低电平），计数器减至0时恢复高电平。
+code 	ends 
+		end start

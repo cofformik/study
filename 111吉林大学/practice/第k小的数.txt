@@ -1,0 +1,31 @@
+#include<iostream>
+#include<iostream>
+#include<vector>
+#include<algorithm>
+using namespace std;
+int quick_sort(vector<int>& res, int l, int r,int k) {
+    if (l >= r) return res[l];
+    int i = l - 1; int j = r + 1;
+    int x = res[l + (r - l) / 2];
+    while (i < j) {
+        do i++; while (res[i] < x);
+        do j--; while (res[j] > x);
+        if (i < j) swap(res[i], res[j]);
+    }
+    if(k<=j-l+1) return quick_sort(res, l, j,k);
+    return quick_sort(res, j + 1, r,k-(j-l+1));
+}
+int main() {
+    int n;
+    scanf("%d", &n);
+    vector<int> res(n);
+     int k;scanf("%d",&k);
+    for (int i = 0; i < n; ++i)
+    {
+        scanf("%d", &res[i]);
+    }
+   
+    cout<<quick_sort(res, 0, n - 1,k);
+
+    return 0;
+}

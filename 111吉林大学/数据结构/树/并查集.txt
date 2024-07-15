@@ -1,0 +1,42 @@
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int findRoot(vector<int>& reg, int node) {
+    if (reg[node] == node) {
+        return node;
+    }
+    return reg[node] = findRoot(reg, reg[node]);
+}
+void operate(vector<int>& reg, int a, int b) {
+    int rootA = findRoot(reg, a);
+    int rootB = findRoot(reg, b);
+    if (rootA != rootB) {
+        reg[rootA] = rootB;
+    }
+}
+int main() {
+    int t;
+    cin >> t;
+    while (t--) {
+        int m, n;
+        cin >> n >> m;
+        vector<int> reg(n + 1);
+        for (int i = 1; i <= n; ++i) {
+            reg[i] = i;
+        }
+        while (m--) {
+            int a, b;
+            cin >> a >> b;
+            operate(reg, a, b);
+        }
+
+        for (int j = 1; j <= n; ++j) {
+            cout << findRoot(reg, j) << " ";
+
+        }
+        cout << endl;
+    }
+    return 0;
+}
+

@@ -1,0 +1,62 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<iostream>
+#include<vector>
+using namespace std;
+const int N = 220;
+
+void dfs1(vector<int> G[N], int visited[N], vector<int>& s, int u) {
+    if (visited[u]) return;
+    visited[u] = 1;
+    for (int i : G[u]) {
+        dfs1(G, visited, s, i);
+    }
+    s.push_back(u);
+}
+
+void dfs2(vector<int> rG[N], int sccno[N], int& cnt, int u) {
+    if (sccno[u]) return;
+    sccno[u] = cnt;
+    for (int i : rG[u]) {
+        dfs2(rG, sccno, cnt, i);
+    }
+}
+
+int Kosaraju(vector<int> G[N], vector<int> rG[N], int n) {
+    int cnt = 0;
+    vector<int> s;
+    int visited[N];
+    int sccno[N];
+    for (int i = 1; i <= n; ++i) visited[i] = 0;
+    for (int i = 1; i <= n; ++i) sccno[i] = 0;
+    for (int i = 1; i <= n; ++i)
+        dfs1(G, visited, s, i);
+    for (int i = n-1; i >= 0; i--) {
+        if (!sccno[s[i]]) {
+            cnt++;
+            dfs2(rG, sccno, cnt, s[i]);
+        }
+    }
+    return cnt;
+}
+
+int main() {
+    int t;
+    scanf("%d", &t);
+    while (t--) {
+        int n;
+        scanf("%d", &n);
+        vector<int> G[N] = {}, rG[N]={}, s;
+        for (int i = 1; i <= n; ++i) {
+            int x;
+            scanf("%d", &x);
+            while (x != 0) {
+                G[i].push_back(x);
+                rG[x].push_back(i);
+                scanf("%d", &x);
+            }
+        }
+       int ans= Kosaraju(G, rG, n);
+        printf("%d\n", ans);
+    }
+    return 0;
+}

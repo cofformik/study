@@ -1,0 +1,29 @@
+A8254 EQU 0600H
+B8254 EQU 0602H 
+C8254 EQU 0604H 
+CON8254 EQU 0606H
+;IOY0片选
+SSTACK SEGMENT STACK 
+    DW 32 DUP(?) 
+SSTACK ENDS 
+CODE SEGMENT 
+    ASSUME CS:CODE
+START:
+  
+    MOV DX, CON8254
+    MOV AL, 70H             ;8254计数器1工作在方式0，计数时输出低电平，到0时输出高电平 
+    ;MOV AL, 72H
+    ;MOV AL, 74H
+    ;MOV AL, 76H
+    OUT DX, AL 
+
+	MOV DX, B8254			;18.432kHz时钟,4800H刚好是1秒的计时
+    MOV AL, 03H
+    OUT DX, AL
+    MOV AL, 00H             ;分别写入低8位和高8位计数器初值，合起来是4800H                                          
+    OUT DX, AL   
+
+AA1: 
+    JMP AA1 
+CODE ENDS 
+    END START

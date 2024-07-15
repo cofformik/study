@@ -1,0 +1,52 @@
+﻿code 	segment
+		assume  cs:code
+start:
+		mov cx, 0fh
+aa1: 
+		mov dx, 0600h     	
+		mov al, 00h
+		out dx, al		;梯形波的底边00h
+		call delay2
+ 
+aa2:
+		mov dx, 0600h     	;梯形波从00h上升到0ffh
+		out dx, al
+		call delay1
+		cmp al, 0ffh
+		je aa3
+		inc al
+		jmp aa2
+ 
+aa3:
+		mov dx, 0600h     	;梯形波的最上边0ffh
+		mov al, 0ffh
+		out dx, al
+		call delay2
+ 
+aa4:
+		mov dx, 0600h     	;梯形波从0ffh下降到00h
+		out dx, al
+		call delay1
+		cmp al, 00h
+		je aa1
+		dec al
+		jmp aa1          	;一个梯形波周期由上述四个部分组成，循环往复
+ 
+delay1:  					;短延时
+		push cx
+		mov cx, 0ffh
+aa5: 
+		loop aa5
+		pop cx
+		ret
+ 
+delay2:  					;长延时
+		push cx
+		mov cx, 0ffffh
+aa6: 
+		loop aa6
+		pop cx
+		ret
+ 
+code 	ends
+		end start

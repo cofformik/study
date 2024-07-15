@@ -1,0 +1,207 @@
+      org   0000h
+      jmp   Start
+      org   000BH
+	  LJMP  T0IN ;中间地址保留给中断向量表
+      org   0040h
+TAB:  DB 0C0H,0F9H,0A4H,0B0H,99H,92H,82H,0F8H,80H,90H
+Start:
+      P4 EQU 0C0H
+      P4SW EQU 0BBH
+	  CE1 EQU P1.1
+      CE2 EQU P1.4
+	  IN1 EQU P3.2
+	  IN2 EQU P1.0
+	  S1  EQU P3.6 ;开关s1 s2
+      S2  EQU P3.7
+	  	  
+	  SETB CE1
+	  SETB CE2   ;输出控制端 置高即可
+	  
+	  MOV P4SW,#30H
+      MOV R0,#0
+	  MOV R1,#0
+	  MOV R2,#0
+	  MOV DPTR,#TAB   ;三位数字
+	  call ShowAndNext
+	  
+	  CLR EA ;关中断  
+	  MOV TMOD,#01H ;mode 1
+	  MOV TH0,#0BH
+	  MOV TL0,#0DCH 
+	  SETB EA   ;
+
+		SETB ET0  
+		SETB TR0 
+	  
+	  MOV R4,#00H;用于控制步进机状态
+	  MOV R7,#00H;记录3个步骤的第几步
+	  MOV R5,#120;记录步数 5*24
+ROT1:  
+	  SETB IN2 ;01-11-10-00-01
+	  call ShowAndNext
+	  DEC R5
+	  CJNE R4,#01H,$   ;
+
+	  SETB IN1
+	  call ShowAndNext
+	  DEC R5
+	  CJNE R4,#02H,$
+      
+	  CLR IN2
+	  call ShowAndNext
+	  DEC R5
+	  CJNE R4,#03H,$
+      
+	  CLR IN1
+      call ShowAndNext	
+      CJNE R4,#04H,$
+	  DJNZ R5,ROT1  ;r5 -1 !=0 jmp back
+	  
+	  JB S1,$  ; ??s1
+		  
+	  INC R7  ;???
+	  MOV R5,#240  ;10 * 24
+	  CLR EA  ;???
+	  MOV TMOD,#01H
+	  MOV TH0,#3CH
+	  MOV TL0,#0B0H
+	  SETB EA ;???
+
+
+	  
+	 
+ROT2:	    ;01-11-10-00-01
+	  CLR IN1   ;01??
+      call ShowAndNext
+	  DEC R5
+      CJNE R4,#02H,$  
+		  
+      CLR IN2
+	  call ShowAndNext
+	  DEC R5
+	  CJNE R4,#04H,$  
+		  
+      SETB IN1
+	  call ShowAndNext
+	  DEC R5
+	  CJNE R4,#06H,$ 	   
+		  
+      SETB IN2
+	  call ShowAndNext
+	  CJNE R4,#08H,$
+	  DJNZ R5,ROT2
+      JB S1,$
+
+	  INC R7  ;???
+	  CLR EA  ;???
+	  MOV TMOD,#01H
+	  MOV TH0,#3CH
+	  MOV TL0,#0B0H
+	  SETB EA ;???
+
+	
+ROT3:
+	  JNB S2,$  ; ??s2?????
+	  SETB IN2 ;01-11-10-00-01
+	  call ShowAndNext
+	  CJNE R4,#05H,$   ;
+
+	  JNB S2,$  ; ??s2?????
+	  SETB IN1
+	  call ShowAndNext
+	  CJNE R4,#0AH,$
+      
+	  JNB S2,$  ; ??s2?????
+	  CLR IN2
+	  call ShowAndNext
+	  CJNE R4,#0FH,$
+      
+	  JNB S2,$  ; ??s2?????
+	  CLR IN1
+      call ShowAndNext	
+      CJNE R4,#14H,$
+	  JMP ROT3
+	
+
+	
+T0IN: 
+      PUSH ACC ;保存断点
+      MOV A,R7
+	  JZ TIME1  ; = 0 JMP
+	  DEC A
+	  
+	  JZ TIME2
+	  JMP TIME3
+TIME1:	  
+      INC R4
+	  CJNE R4,#05H,T1_END
+      MOV R4,#00H
+T1_END:
+
+	  POP ACC  
+	  RETI
+TIME2:	  
+      INC R4
+	  CJNE R4,#09H,T2_END
+      MOV R4,#00H
+T2_END:
+
+	  POP ACC  
+	  RETI
+TIME3:	  
+      INC R4
+	  CJNE R4,#15H,T3_END
+      MOV R4,#00H
+T3_END:
+	  POP ACC  
+	  RETI  
+
+ShowAndNext:
+      PUSH ACC
+      MOV A,R0
+	  MOVC A,@A+DPTR
+	  
+	  CALL display
+	  
+	  MOV A,R1
+	  MOVC A,@A+DPTR
+	  CALL display
+	  
+	  MOV A,R2
+	  MOVC A,@A+DPTR
+	  CALL display
+   
+	  INC R0
+	  CJNE R0,#10,END_NEXT
+	  MOV R0,#0
+
+	  INC R1 	
+	  CJNE R1,#10,END_NEXT
+	  MOV R1,#0
+	  INC R2
+	  CJNE R2,#10,END_NEXT
+	  MOV R2,#0
+END_NEXT:	
+      POP ACC
+      RET
+
+display:
+      MOV R6,#8
+D:
+	  RLC A
+	  JC D1
+	  JMP D0
+D0:
+	  CLR P4.4
+	  CLR P4.5
+	  SETB P4.4
+	  DJNZ R6,D
+	  RET
+D1:
+      CLR P4.4
+	  SETB P4.5
+	  SETB P4.4
+	  DJNZ R6,D
+	  RET
+	  
+END
